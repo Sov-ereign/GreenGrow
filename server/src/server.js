@@ -1,13 +1,13 @@
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
 import app from './app.js';
-import { connectDB } from './config/db.js';
 
-const port = process.env.PORT || 5000;
+dotenv.config();
 
-const start = async () => {
-  await connectDB();
-  app.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}`);
-  });
-};
+const PORT = process.env.PORT || 5000;
 
-start();
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => {
+    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  })
+  .catch((err) => console.error(err));
