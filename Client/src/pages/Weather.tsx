@@ -89,6 +89,7 @@ const Weather: React.FC = () => {
       // Get current weather (using current weather API which should be free tier)
       let weatherData;
       let cityName = "";
+      let nextLocation: string | null = null;
       
       try {
         const currentRes = await axios.get(
@@ -96,6 +97,7 @@ const Weather: React.FC = () => {
         );
         weatherData = currentRes.data;
         cityName = currentRes.data.name || "";
+        if (cityName) nextLocation = cityName;
       } catch (currentErr: any) {
         // If current weather fails, try to get data from forecast endpoint
         console.warn("Current weather API failed, using forecast data:", currentErr?.response?.status);
@@ -129,30 +131,33 @@ const Weather: React.FC = () => {
       if (weatherData) {
         setData(weatherData);
       }
-      
-      // Use city name from forecast response or set location
+
+      // Choose location locally (do not rely on current state within same tick)
       if (forecastRes.data.city?.name) {
-        setLocation(forecastRes.data.city.name);
-      } else if (cityName) {
-        setLocation(cityName);
-      } else {
-        // Try reverse geocoding as last resort
+        nextLocation = forecastRes.data.city.name;
+      }
+      if (!nextLocation && cityName) {
+        nextLocation = cityName;
+      }
+      if (!nextLocation) {
         try {
           const reverseGeo = await axios.get(
             `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}`
           );
           if (reverseGeo.data?.[0]?.name) {
-            setLocation(reverseGeo.data[0].name);
-          } else {
-            setLocation(`${lat.toFixed(2)}, ${lon.toFixed(2)}`);
+            nextLocation = reverseGeo.data[0].name;
           }
-        } catch (geoErr) {
-          setLocation(`${lat.toFixed(2)}, ${lon.toFixed(2)}`);
+        } catch {
+          // ignore
         }
       }
+      if (!nextLocation) {
+        nextLocation = `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+      }
+      setLocation(nextLocation);
       
       // Set forecast (skip today, take next 7 days from the list)
-      // The API returns 7 days, first one is today, so we take days 2-8 (7 days)
+      // The API returns 8 days (we requested cnt=8), first one is today, so we take the remaining 7
       if (forecastRes.data.list && forecastRes.data.list.length > 1) {
         setForecast(forecastRes.data.list.slice(1)); // Skip today, take remaining days
       } else if (forecastRes.data.list && forecastRes.data.list.length > 0) {

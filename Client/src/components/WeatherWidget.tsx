@@ -18,13 +18,14 @@ const WeatherWidget: React.FC = () => {
     try {
       // Try current weather API first
       let weatherData;
+      let nextLocation: string | null = null;
       try {
         const res = await axios.get(
           `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`
         );
         weatherData = res.data;
         if (res.data.name) {
-          setLocation(res.data.name);
+          nextLocation = res.data.name;
         }
       } catch (currentErr: any) {
         // If current weather fails, use first day from forecast
@@ -48,7 +49,7 @@ const WeatherWidget: React.FC = () => {
               visibility: 10000,
             };
             if (forecastRes.data.city?.name) {
-              setLocation(forecastRes.data.city.name);
+              nextLocation = forecastRes.data.city.name;
             }
           }
         } catch (forecastErr) {
@@ -60,21 +61,23 @@ const WeatherWidget: React.FC = () => {
         setData(weatherData);
       }
       
-      // If location still not set, try reverse geocoding or use coordinates
-      if (location === "Detecting...") {
+      // Decide final location once, without relying on current state value
+      if (!nextLocation) {
         try {
           const reverseGeo = await axios.get(
             `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}`
           );
           if (reverseGeo.data?.[0]?.name) {
-            setLocation(reverseGeo.data[0].name);
-          } else {
-            setLocation(`${lat.toFixed(2)}, ${lon.toFixed(2)}`);
+            nextLocation = reverseGeo.data[0].name;
           }
-        } catch (geoErr) {
-          setLocation(`${lat.toFixed(2)}, ${lon.toFixed(2)}`);
+        } catch {
+          // ignore
         }
       }
+      if (!nextLocation) {
+        nextLocation = `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+      }
+      setLocation(nextLocation);
     } catch (err: any) {
       console.error("Error fetching weather:", err);
       if (err?.response?.status === 401) {
@@ -161,3 +164,4 @@ const WeatherWidget: React.FC = () => {
 };
 
 export default WeatherWidget;
+
