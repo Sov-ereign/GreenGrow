@@ -1,72 +1,148 @@
 import React, { useState, useRef } from 'react';
-import { Send, Image, Paperclip, MoreHorizontal, Bot, User, Mic, Camera, FileText } from 'lucide-react';
+import { Send, Image, Paperclip, MoreHorizontal, Bot, User, Mic, Camera, FileText, X } from 'lucide-react';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const Chat: React.FC = () => {
   const [messages, setMessages] = useState([
     {
       id: 1,
-      text: "Hello! I'm your AI farming advisor. I'm here to help you with all your agricultural questions. How can I assist you today?",
-      sender: 'ai',
-      time: '10:30 AM',
-      avatar: 'https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=100'
+      text: "Hello! I'm GreenGrow AI, your farming advisor. Ask me about crops, weather, pests, or upload a plant image for disease detection!",
+      sender: 'ai' as const,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      imageUrl: null as string | null,
     },
-    {
-      id: 2,
-      text: "My wheat crop is showing yellow leaves in some areas. The plants are about 3 months old. What could be causing this?",
-      sender: 'user',
-      time: '10:32 AM'
-    },
-    {
-      id: 3,
-      text: "Yellow leaves in wheat at 3 months can indicate several issues:\n\n1. **Nitrogen Deficiency** - Most common cause\n2. **Waterlogging** - Check soil drainage\n3. **Disease** - Look for spots or patterns\n\nCan you share a photo of the affected plants? This will help me give you a more accurate diagnosis.",
-      sender: 'ai',
-      time: '10:33 AM',
-      avatar: 'https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=100'
-    },
-    {
-      id: 4,
-      text: "I'll take some photos right now. Also, should I apply fertilizer immediately?",
-      sender: 'user',
-      time: '10:35 AM'
-    },
-    {
-      id: 5,
-      text: "Great! Photos will be very helpful. Before applying fertilizer:\n\n✅ **Check soil moisture** first\n✅ **Wait for photos** to confirm diagnosis\n✅ **Test soil pH** if possible\n\n⚠️ Don't apply fertilizer if soil is waterlogged - it won't help and may cause more damage.\n\nI'll provide specific recommendations once I see the photos!",
-      sender: 'ai',
-      time: '10:36 AM',
-      avatar: 'https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=100'
-    }
   ]);
   
   const [newMessage, setNewMessage] = useState('');
+  const [loading, setLoading] = useState(false);
   const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
-  const sendMessage = () => {
-    if (newMessage.trim()) {
-      const userMessage = {
-        id: messages.length + 1,
-        text: newMessage,
-        sender: 'user' as const,
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        alert("Image size should be less than 10MB");
+        return;
+      }
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
       };
-      
-      setMessages([...messages, userMessage]);
-      setNewMessage('');
-      
-      // Simulate AI response
-      setTimeout(() => {
-        const aiResponse = {
-          id: messages.length + 2,
-          text: "I understand your concern. Let me analyze this information and provide you with the best recommendations for your situation.",
-          sender: 'ai' as const,
-          time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-          avatar: 'https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=100'
-        };
-        setMessages(prev => [...prev, aiResponse]);
-      }, 1000);
+      reader.readAsDataURL(file);
     }
+  };
+
+  const removeImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
+  };
+
+  const sendMessage = async () => {
+    const hasText = newMessage.trim();
+    const hasImage = selectedImage !== null;
+
+    if ((!hasText && !hasImage) || loading) return;
+
+    // Add user message
+    const userMessage = {
+      id: messages.length + 1,
+      text: hasText ? newMessage : "📷 Analyzing plant image...",
+      sender: 'user' as const,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      imageUrl: imagePreview,
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    const messageText = newMessage;
+    setNewMessage('');
+    setLoading(true);
+
+    try {
+      if (hasImage && selectedImage) {
+        // Send image for analysis
+        const formData = new FormData();
+        formData.append("image", selectedImage);
+
+        const res = await fetch(`${API_BASE_URL}/api/chat/image-analysis`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          throw new Error(`Server error: ${res.status}`);
+        }
+
+        const data = await res.json();
+        let aiText = data.response || "I couldn't analyze the image. Please try again.";
+
+        // Add disease detection info if available
+        if (data.diseaseDetection) {
+          const detection = data.diseaseDetection;
+          aiText = `🔍 **Disease Detection Results:**\n${detection.disease || detection.predicted_class || "Unknown"} (${detection.confidence || 0}% confidence)\n\n${aiText}`;
+        }
+
+        setMessages(prev => [
+          ...prev,
+          {
+            id: prev.length + 1,
+            text: aiText,
+            sender: 'ai' as const,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            imageUrl: null,
+          },
+        ]);
+
+        // Clear image after sending
+        removeImage();
+      } else if (hasText) {
+        // Send text message
+        const res = await fetch(`${API_BASE_URL}/api/chat/message`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: messageText }),
+        });
+
+        if (!res.ok) {
+          throw new Error(`Server error: ${res.status}`);
+        }
+
+        const data = await res.json();
+        const aiText = data.response || "Sorry, I couldn't process your question.";
+
+        setMessages(prev => [
+          ...prev,
+          {
+            id: prev.length + 1,
+            text: aiText,
+            sender: 'ai' as const,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            imageUrl: null,
+          },
+        ]);
+      }
+    } catch (err: any) {
+      console.error("Chat error:", err);
+      setMessages(prev => [
+        ...prev,
+        {
+          id: prev.length + 1,
+          text: `Error: ${err.message || "Failed to get response. Please check if the server is running."}`,
+          sender: 'ai' as const,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          imageUrl: null,
+        },
+      ]);
+    }
+    setLoading(false);
   };
 
   const handleImageUpload = () => {
@@ -93,7 +169,7 @@ const Chat: React.FC = () => {
             <Bot className="h-6 w-6 text-white" />
           </div>
           <div className="flex-1">
-            <h1 className="text-xl font-semibold text-gray-800">AI Farming Advisor</h1>
+            <h1 className="text-xl font-semibold text-gray-800">GreenGrow AI</h1>
             <p className="text-sm text-green-600 flex items-center">
               <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
               Online • Ready to help
@@ -141,7 +217,16 @@ const Chat: React.FC = () => {
                       <span className="text-xs font-medium text-green-600">AI Advisor</span>
                     </div>
                   )}
-                  <p className="text-sm leading-relaxed whitespace-pre-line">{message.text}</p>
+                  {message.imageUrl && (
+                    <div className="mb-2 rounded-lg overflow-hidden">
+                      <img
+                        src={message.imageUrl}
+                        alt="Uploaded plant"
+                        className="w-full h-auto max-h-48 object-contain rounded-lg"
+                      />
+                    </div>
+                  )}
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.text}</p>
                   <p className={`text-xs mt-2 ${
                     message.sender === 'user' ? 'text-green-100' : 'text-gray-500'
                   }`}>
@@ -151,7 +236,48 @@ const Chat: React.FC = () => {
               </div>
             </div>
           ))}
+          {loading && (
+            <div className="flex justify-start">
+              <div className="flex max-w-[80%] flex-row items-end space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center flex-shrink-0 mr-3">
+                  <Bot className="h-5 w-5 text-white" />
+                </div>
+                <div className="rounded-2xl px-6 py-4 bg-gray-100 text-gray-800">
+                  <div className="flex items-center mb-2">
+                    <Bot className="h-3 w-3 mr-2 text-green-600" />
+                    <span className="text-xs font-medium text-green-600">AI Advisor</span>
+                  </div>
+                  <p className="text-sm">Thinking...</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Image Preview */}
+        {imagePreview && (
+          <div className="mb-4 p-3 bg-gray-50 rounded-xl">
+            <div className="flex items-center space-x-3">
+              <div className="relative">
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="h-20 w-20 object-cover rounded-lg border-2 border-green-500"
+                />
+                <button
+                  onClick={removeImage}
+                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-700">Image ready to upload</p>
+                <p className="text-xs text-gray-500">{selectedImage?.name}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Input Area */}
         <div className="border-t border-gray-100 pt-6">
@@ -190,9 +316,10 @@ const Chat: React.FC = () => {
                     sendMessage();
                   }
                 }}
-                placeholder="Ask about crops, weather, pests, or any farming question..."
+                placeholder={selectedImage ? "Add a message (optional)..." : "Ask about crops, weather, pests, or any farming question..."}
                 className="w-full px-4 py-3 pr-32 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none min-h-[50px] max-h-32"
                 rows={1}
+                disabled={loading}
               />
               
               {/* Input Actions */}
@@ -227,7 +354,7 @@ const Chat: React.FC = () => {
 
             <button
               onClick={sendMessage}
-              disabled={!newMessage.trim()}
+              disabled={(!newMessage.trim() && !selectedImage) || loading}
               className="bg-gradient-to-r from-green-500 to-green-600 text-white p-3 rounded-xl hover:from-green-600 hover:to-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
             >
               <Send className="h-5 w-5" />
@@ -240,10 +367,7 @@ const Chat: React.FC = () => {
             type="file"
             accept="image/*"
             className="hidden"
-            onChange={(e) => {
-              // Handle image upload
-              console.log('Image selected:', e.target.files?.[0]);
-            }}
+            onChange={handleImageSelect}
           />
           <input
             ref={fileInputRef}
