@@ -247,7 +247,7 @@ const Chat: React.FC = () => {
                     <Bot className="h-3 w-3 mr-2 text-green-600" />
                     <span className="text-xs font-medium text-green-600">AI Advisor</span>
                   </div>
-                  <div className="text-sm">Thinking...</div>
+                  <p className="text-sm">Thinking...</p>
                 </div>
               </div>
             </div>
@@ -272,8 +272,8 @@ const Chat: React.FC = () => {
                 </button>
               </div>
               <div className="flex-1">
-                <div className="text-sm font-medium text-gray-700">Image ready to upload</div>
-                <div className="text-xs text-gray-500">{selectedImage?.name}</div>
+                <p className="text-sm font-medium text-gray-700">Image ready to upload</p>
+                <p className="text-xs text-gray-500">{selectedImage?.name}</p>
               </div>
             </div>
           </div>

@@ -20,7 +20,7 @@ if (!fs.existsSync(uploadsDir)) {
 
 // Test route to verify chat routes are loaded
 router.get('/test', (req, res) => {
-  res.json({ message: 'Chat routes are working!' });
+  res.json({ message: 'Chat routes are working!', timestamp: new Date().toISOString() });
 });
 
 // General chat endpoint (text queries)
@@ -36,8 +36,8 @@ router.post('/message', async (req, res) => {
       return res.status(500).json({ error: 'Gemini API key not configured' });
     }
 
-    // Use gemini-1.5-flash for better performance and compatibility
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // Use gemini-2.0-flash-exp for text generation (latest stable model)
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
 
     const prompt = `You are an AI farming advisor for GreenGrow. Help farmers with crop cultivation, weather, disease prevention, soil management, and agriculture best practices. 
     
@@ -136,8 +136,8 @@ Please analyze this image and provide:
 
     // Step 3: Send to Gemini with image
     try {
-      // Use gemini-1.5-flash or gemini-pro-vision
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      // Use gemini-2.0-flash-exp for image analysis (supports vision)
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
       
       const response = await axios.post(geminiUrl, {
         contents: [{
