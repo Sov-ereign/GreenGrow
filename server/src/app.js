@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./routes/authRoutes.js";
 import mandiRoutes from "./routes/mandiRoutes.js";
 import newsRoutes from "./routes/newsRoutes.js";
+import chatRoutes from "./routes/chatRoutes.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 
 dotenv.config();
@@ -40,6 +41,7 @@ app.options("*", cors(corsOptions));
 
 app.use(morgan("dev"));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 app.get("/api/health", (req, res) => {
@@ -49,6 +51,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/mandi", mandiRoutes);
 app.use("/api/news", newsRoutes);
+app.use("/api/chat", chatRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
