@@ -1,5 +1,10 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import Weather from "./pages/Weather";
@@ -12,11 +17,22 @@ import Help from "./pages/Help";
 import Community from "./pages/Community";
 import Support from "./pages/Support";
 import VoiceAssistant from "./pages/VoiceAssistant";
+import Register from "./pages/Register";
+import LocationDialog from "./pages/LocationDialog"; // ✅ Added
 
-function App() {
+function AppContent() {
+  const location = useLocation();
+  const hideLayout = location.pathname === "/register";
+
   return (
-    <Router>
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 font-['Inter',sans-serif]">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 font-['Inter',sans-serif]">
+      {!hideLayout && <LocationDialog />}{" "}
+      {/* ✅ Show popup on all pages except Register */}
+      {hideLayout ? (
+        <Routes>
+          <Route path="/register" element={<Register />} />
+        </Routes>
+      ) : (
         <Layout>
           <Routes>
             <Route path="/" element={<Home />} />
@@ -32,7 +48,15 @@ function App() {
             <Route path="/support" element={<Support />} />
           </Routes>
         </Layout>
-      </div>
+      )}
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppContent />
     </Router>
   );
 }
