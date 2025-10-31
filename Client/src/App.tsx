@@ -35,17 +35,30 @@ function AppContent() {
       ) : (
         <Layout>
           <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/weather" element={<Weather />} />
-            <Route path="/crops" element={<Crops />} />
-            <Route path="/market" element={<Market />} />
-            <Route path="/schemes" element={<Schemes />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/chat" element={<Chat />} />
-            <Route path="/voice" element={<VoiceAssistant />} />
-            <Route path="/help" element={<Help />} />
-            <Route path="/community" element={<Community />} />
-            <Route path="/support" element={<Support />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<SignUp />} />
+            <Route
+              path="/*"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Routes>
+                      <Route path="/" element={<Home />} />
+                      <Route path="/weather" element={<Weather />} />
+                      <Route path="/crops" element={<Crops />} />
+                      <Route path="/market" element={<Market />} />
+                      <Route path="/schemes" element={<Schemes />} />
+                      <Route path="/settings" element={<Settings />} />
+                      <Route path="/chat" element={<Chat />} />
+                      <Route path="/voice" element={<VoiceAssistant />} />
+                      <Route path="/help" element={<Help />} />
+                      <Route path="/community" element={<Community />} />
+                      <Route path="/support" element={<Support />} />
+                    </Routes>
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
           </Routes>
         </Layout>
       )}

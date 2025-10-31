@@ -1,12 +1,24 @@
 import React from 'react';
 import { BarChart3, DollarSign, Wheat, Calendar } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
-const StatsCards: React.FC = () => {
-  const stats = [
+interface StatsCardsProps {
+  stats?: {
+    totalYield: number;
+    totalArea: number;
+    avgDaysToHarvest: number;
+    cropCount: number;
+  } | null;
+}
+
+const StatsCards: React.FC<StatsCardsProps> = ({ stats }) => {
+  const { profile } = useAuth();
+
+  const statsData = [
     {
       id: 1,
       title: "Total Yield",
-      value: "2,450 kg",
+      value: stats ? `${stats.totalYield.toLocaleString()} kg` : "0 kg",
       change: "+12%",
       icon: Wheat,
       color: "text-green-600",
@@ -15,9 +27,9 @@ const StatsCards: React.FC = () => {
     },
     {
       id: 2,
-      title: "Revenue",
-      value: "₹1,23,000",
-      change: "+8%",
+      title: "Active Crops",
+      value: stats ? `${stats.cropCount}` : "0",
+      change: "+2",
       icon: DollarSign,
       color: "text-blue-600",
       bgColor: "bg-blue-50",
@@ -26,7 +38,7 @@ const StatsCards: React.FC = () => {
     {
       id: 3,
       title: "Farm Size",
-      value: "5.2 acres",
+      value: profile?.farm_size ? `${profile.farm_size} acres` : "0 acres",
       change: "0%",
       icon: BarChart3,
       color: "text-purple-600",
@@ -35,8 +47,8 @@ const StatsCards: React.FC = () => {
     },
     {
       id: 4,
-      title: "Days to Harvest",
-      value: "45 days",
+      title: "Avg Days to Harvest",
+      value: stats ? `${stats.avgDaysToHarvest} days` : "0 days",
       change: "-5 days",
       icon: Calendar,
       color: "text-orange-600",
@@ -47,7 +59,7 @@ const StatsCards: React.FC = () => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-      {stats.map((stat) => {
+      {statsData.map((stat) => {
         const Icon = stat.icon;
         return (
           <div
@@ -60,8 +72,8 @@ const StatsCards: React.FC = () => {
               </div>
               <span className={`text-sm font-medium ${
                 stat.change.startsWith('+') ? 'text-green-600' :
-                stat.change.startsWith('-') && stat.title !== 'Days to Harvest' ? 'text-red-600' :
-                stat.change.startsWith('-') && stat.title === 'Days to Harvest' ? 'text-green-600' :
+                stat.change.startsWith('-') && stat.title !== 'Avg Days to Harvest' ? 'text-red-600' :
+                stat.change.startsWith('-') && stat.title === 'Avg Days to Harvest' ? 'text-green-600' :
                 'text-gray-600'
               }`}>
                 {stat.change}
