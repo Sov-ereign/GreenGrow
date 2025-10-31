@@ -194,14 +194,14 @@ const ChatInterface: React.FC = () => {
                   />
                 </div>
               )}
-              <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-              <p
+              <div className="text-sm whitespace-pre-wrap">{message.text}</div>
+              <div
                 className={`text-xs mt-1 ${
                   message.sender === "user" ? "text-green-100" : "text-gray-400"
                 }`}
               >
                 {message.time}
-              </p>
+              </div>
             </div>
           </div>
         ))}

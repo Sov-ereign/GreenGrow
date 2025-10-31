@@ -170,10 +170,10 @@ const Chat: React.FC = () => {
           </div>
           <div className="flex-1">
             <h1 className="text-xl font-semibold text-gray-800">GreenGrow AI</h1>
-            <p className="text-sm text-green-600 flex items-center">
+            <div className="text-sm text-green-600 flex items-center">
               <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
               Online • Ready to help
-            </p>
+            </div>
           </div>
           <div className="flex items-center space-x-2">
             <button className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
@@ -226,12 +226,12 @@ const Chat: React.FC = () => {
                       />
                     </div>
                   )}
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.text}</p>
-                  <p className={`text-xs mt-2 ${
+                  <div className="text-sm leading-relaxed whitespace-pre-wrap">{message.text}</div>
+                  <div className={`text-xs mt-2 ${
                     message.sender === 'user' ? 'text-green-100' : 'text-gray-500'
                   }`}>
                     {message.time}
-                  </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -247,7 +247,7 @@ const Chat: React.FC = () => {
                     <Bot className="h-3 w-3 mr-2 text-green-600" />
                     <span className="text-xs font-medium text-green-600">AI Advisor</span>
                   </div>
-                  <p className="text-sm">Thinking...</p>
+                  <div className="text-sm">Thinking...</div>
                 </div>
               </div>
             </div>
@@ -272,8 +272,8 @@ const Chat: React.FC = () => {
                 </button>
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-700">Image ready to upload</p>
-                <p className="text-xs text-gray-500">{selectedImage?.name}</p>
+                <div className="text-sm font-medium text-gray-700">Image ready to upload</div>
+                <div className="text-xs text-gray-500">{selectedImage?.name}</div>
               </div>
             </div>
           </div>

@@ -18,6 +18,11 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+// Test route to verify chat routes are loaded
+router.get('/test', (req, res) => {
+  res.json({ message: 'Chat routes are working!' });
+});
+
 // General chat endpoint (text queries)
 router.post('/message', async (req, res) => {
   try {
@@ -31,13 +36,14 @@ router.post('/message', async (req, res) => {
       return res.status(500).json({ error: 'Gemini API key not configured' });
     }
 
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+    // Use gemini-1.5-flash for better performance and compatibility
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const prompt = `You are an AI farming advisor for GreenGrow. Help farmers with crop cultivation, weather, disease prevention, soil management, and agriculture best practices. 
     
-    User question: ${message}
-    
-    Provide helpful, practical advice in a friendly and professional manner.`;
+User question: ${message}
+
+Provide helpful, practical advice in a friendly and professional manner.`;
 
     const response = await axios.post(API_URL, {
       contents: [{ parts: [{ text: prompt }] }],
@@ -51,9 +57,16 @@ router.post('/message', async (req, res) => {
     res.json({ response: aiText });
   } catch (err) {
     console.error('Error in chat message:', err.response?.data || err.message);
-    res.status(500).json({ 
+    console.error('Full error:', err);
+    
+    // More detailed error response
+    const errorMessage = err.response?.data?.error?.message || err.message;
+    const errorCode = err.response?.status || 500;
+    
+    res.status(errorCode).json({ 
       error: 'Failed to get AI response',
-      details: err.response?.data?.error?.message || err.message 
+      details: errorMessage,
+      code: err.response?.data?.error?.code || 'UNKNOWN_ERROR'
     });
   }
 });
