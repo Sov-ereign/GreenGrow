@@ -17,6 +17,30 @@ const Weather: React.FC = () => {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const API_KEY = import.meta.env.VITE_WEATHER_API_KEY;
 
+  // Early return if API key is missing
+  if (!API_KEY) {
+    return (
+      <div className="p-6 text-gray-700">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <h2 className="text-xl font-semibold text-yellow-800 mb-2">Weather API Key Missing</h2>
+          <p className="text-gray-600 mb-3">
+            To enable weather features, create a <code className="bg-gray-100 px-2 py-1 rounded">.env</code> file in the <code className="bg-gray-100 px-2 py-1 rounded">Client</code> directory with:
+          </p>
+          <code className="block bg-gray-800 text-green-400 p-3 rounded font-mono text-sm">
+            VITE_WEATHER_API_KEY=your_openweather_api_key
+          </code>
+          <p className="text-sm text-gray-500 mt-3">
+            Get your free API key from{" "}
+            <a href="https://openweathermap.org/api" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+              openweathermap.org
+            </a>
+            . Then restart your dev server.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Fetch weather by city name
   const fetchWeatherByCity = async (city: string) => {
     try {
@@ -32,13 +56,47 @@ const Weather: React.FC = () => {
     }
   };
 
-  // Fetch 7-day forecast
+  // Fetch 7-day forecast (aggregate from 5-day/3-hour forecast to avoid One Call 401)
   const fetchForecast = async (lat: number, lon: number) => {
     try {
+      // Use free 5-day / 3-hour forecast endpoint
       const res = await axios.get(
-        `https://api.openweathermap.org/data/2.5/onecall?lat=${lat}&lon=${lon}&exclude=minutely,hourly,alerts&units=metric&appid=${API_KEY}`
+        `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`
       );
-      setForecast(res.data.daily.slice(1, 8)); // next 7 days
+
+      const items = res.data.list as Array<any>;
+
+      // Group by calendar day and compute representative values
+      const dayMap: Record<string, { temps: number[]; icons: string[]; mains: string[]; dtList: number[] } > = {};
+      items.forEach((entry) => {
+        const date = new Date(entry.dt * 1000);
+        const key = date.toISOString().slice(0, 10); // YYYY-MM-DD
+        if (!dayMap[key]) {
+          dayMap[key] = { temps: [], icons: [], mains: [], dtList: [] };
+        }
+        dayMap[key].temps.push(entry.main.temp);
+        dayMap[key].icons.push(entry.weather?.[0]?.icon);
+        dayMap[key].mains.push(entry.weather?.[0]?.main);
+        dayMap[key].dtList.push(entry.dt);
+      });
+
+      const days = Object.keys(dayMap)
+        .sort()
+        .slice(1, 8) // skip today, take next 7 days
+        .map((key) => {
+          const bucket = dayMap[key];
+          const avgTemp = bucket.temps.reduce((a, b) => a + b, 0) / bucket.temps.length;
+          const icon = bucket.icons[Math.floor(bucket.icons.length / 2)] || "01d";
+          const main = bucket.mains[Math.floor(bucket.mains.length / 2)] || "Clear";
+          const dt = bucket.dtList[Math.floor(bucket.dtList.length / 2)] || Math.floor(new Date(key).getTime() / 1000);
+          return {
+            dt,
+            temp: { day: avgTemp },
+            weather: [{ icon, main }],
+          };
+        });
+
+      setForecast(days);
     } catch (err) {
       console.error("Error fetching forecast:", err);
     }

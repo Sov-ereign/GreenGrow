@@ -11,6 +11,10 @@ const WeatherWidget: React.FC = () => {
 
   // Fetch weather by coordinates
   const fetchWeatherByCoords = async (lat: number, lon: number) => {
+    if (!API_KEY) {
+      setLocation("API Key Missing");
+      return;
+    }
     try {
       const reverseGeo = await axios.get(
         `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}`
@@ -30,6 +34,7 @@ const WeatherWidget: React.FC = () => {
 
   // Detect user location
   useEffect(() => {
+    if (!API_KEY) return;
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => fetchWeatherByCoords(pos.coords.latitude, pos.coords.longitude),
@@ -38,7 +43,16 @@ const WeatherWidget: React.FC = () => {
     } else {
       fetchWeatherByCoords(22.5726, 88.3639);
     }
-  }, []);
+  }, [API_KEY]);
+
+  if (!API_KEY) {
+    return (
+      <div className="bg-white rounded-xl shadow-md p-6 text-center text-gray-500">
+        <div className="text-sm">Weather API key missing</div>
+        <div className="text-xs mt-1">Add VITE_WEATHER_API_KEY to Client/.env</div>
+      </div>
+    );
+  }
 
   if (!data)
     return (
