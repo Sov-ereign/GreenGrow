@@ -1,2 +1,24 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Datasets
+dataset/
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# Model weights/binaries (ignored by default)
+*.h5
+*.weights.h5
+
+# Allowlist: track this specific weights file
+!model/disease_model.weights.h5
+
 node_modules/
 .env
