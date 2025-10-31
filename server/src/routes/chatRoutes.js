@@ -186,5 +186,153 @@ Please analyze this image and provide:
   }
 });
 
+// Voice command endpoint - interprets voice commands and determines actions
+router.post('/voice-command', async (req, res) => {
+  try {
+    const { command } = req.body;
+    if (!command || typeof command !== 'string') {
+      return res.status(400).json({ 
+        error: 'Command is required',
+        response: "I didn't understand your command. Please try again.",
+        command: { action: 'info', data: {} }
+      });
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('GEMINI_API_KEY is not set in environment variables');
+      return res.status(500).json({ 
+        error: 'Gemini API key not configured',
+        response: "I'm sorry, the voice assistant is not properly configured. Please contact support.",
+        command: { action: 'info', data: {} }
+      });
+    }
+
+    // Use gemini-2.0-flash-exp for command interpretation
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+
+    const prompt = `You are Arav, a voice assistant for GreenGrow, a farming website. The user has given you a voice command. 
+
+Your task is to:
+1. Understand what the user wants to do
+2. Determine the action needed (navigate, search, get info, etc.)
+3. Provide a friendly response
+
+User command: "${command}"
+
+Respond with ONLY valid JSON in this exact format (no markdown, no code blocks, just JSON):
+{
+  "response": "A friendly spoken response to the user (what you will say back)",
+  "command": {
+    "action": "navigate|search|weather|market|crops|chat|home|help|info",
+    "target": "page path like '/weather', '/market', '/chat', '/', '/crops', '/help' (only if action is 'navigate')",
+    "query": "search term (only if action is 'search')",
+    "data": {}
+  }
+}
+
+Examples:
+- User: "Go to weather page" → {"response": "Opening weather page", "command": {"action": "navigate", "target": "/weather"}}
+- User: "Show me market prices" → {"response": "Opening market prices", "command": {"action": "navigate", "target": "/market"}}
+- User: "What's the weather like?" → {"response": "Let me show you the weather", "command": {"action": "navigate", "target": "/weather"}}
+- User: "Tell me about tomatoes" → {"response": "Let me find information about tomatoes", "command": {"action": "search", "query": "tomatoes"}}
+- User: "Open chat" → {"response": "Opening chat", "command": {"action": "navigate", "target": "/chat"}}
+- User: "Take me home" → {"response": "Going to homepage", "command": {"action": "navigate", "target": "/"}}
+- User: "Help me" → {"response": "Opening help page", "command": {"action": "navigate", "target": "/help"}}
+
+Be conversational and helpful. The response should be what Arav will say to the user.`;
+
+    let geminiResponse;
+    try {
+      geminiResponse = await axios.post(API_URL, {
+        contents: [{ parts: [{ text: prompt }] }],
+      }, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (apiErr) {
+      console.error('Gemini API error:', {
+        status: apiErr.response?.status,
+        statusText: apiErr.response?.statusText,
+        data: apiErr.response?.data,
+        message: apiErr.message
+      });
+      throw new Error(`Gemini API error: ${apiErr.response?.data?.error?.message || apiErr.message}`);
+    }
+
+    if (!geminiResponse || !geminiResponse.data) {
+      throw new Error('Invalid response from Gemini API');
+    }
+
+    const aiText = geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || 
+                   "I understand your request.";
+
+    // Parse the JSON response from Gemini
+    let parsedResponse;
+    try {
+      // Remove any markdown code blocks if present
+      const cleanedText = aiText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      parsedResponse = JSON.parse(cleanedText);
+    } catch (parseErr) {
+      console.error('Failed to parse Gemini response as JSON:', aiText);
+      console.error('Parse error:', parseErr.message);
+      // Fallback: try to extract basic navigation
+      const lowerCommand = command.toLowerCase();
+      let action = 'info';
+      let target = null;
+      let fallbackResponse = 'I understand your request.';
+
+      if (lowerCommand.includes('weather') || lowerCommand.includes('temperature')) {
+        action = 'navigate';
+        target = '/weather';
+        fallbackResponse = 'Opening weather page';
+      } else if (lowerCommand.includes('market') || lowerCommand.includes('price')) {
+        action = 'navigate';
+        target = '/market';
+        fallbackResponse = 'Opening market prices';
+      } else if (lowerCommand.includes('chat') || lowerCommand.includes('assistant')) {
+        action = 'navigate';
+        target = '/chat';
+        fallbackResponse = 'Opening chat';
+      } else if (lowerCommand.includes('home') || lowerCommand.includes('homepage')) {
+        action = 'navigate';
+        target = '/';
+        fallbackResponse = 'Going to homepage';
+      } else if (lowerCommand.includes('crop')) {
+        action = 'navigate';
+        target = '/crops';
+        fallbackResponse = 'Opening crops information';
+      } else if (lowerCommand.includes('help')) {
+        action = 'navigate';
+        target = '/help';
+        fallbackResponse = 'Opening help page';
+      }
+
+      parsedResponse = {
+        response: fallbackResponse,
+        command: { action, target, query: null, data: {} }
+      };
+    }
+
+    res.json(parsedResponse);
+  } catch (err) {
+    console.error('Error in voice command:', err);
+    console.error('Error details:', {
+      message: err.message,
+      stack: err.stack,
+      response: err.response?.data,
+      status: err.response?.status
+    });
+    
+    const errorMessage = err.response?.data?.error?.message || err.message || 'Unknown error';
+    
+    res.status(500).json({ 
+      error: 'Failed to process voice command',
+      details: errorMessage,
+      response: "I'm sorry, I couldn't process that command. Please try again.",
+      command: { action: 'info', data: {} }
+    });
+  }
+});
+
 export default router;
 
