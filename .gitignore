@@ -1,0 +1,18 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Datasets
+dataset/
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# Model weights/binaries (optional; comment out if you want to track)
+*.h5
+*.weights.h5
