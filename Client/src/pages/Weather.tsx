@@ -41,66 +41,31 @@ const Weather: React.FC = () => {
     );
   }
 
-  // Fetch weather by city name
+  // Fetch weather by city name (using Geocoding API + Daily Forecast API)
   const fetchWeatherByCity = async (city: string) => {
     try {
-      const res = await axios.get(
-        `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${API_KEY}`
+      // First get coordinates from city name using Geocoding API
+      const geoRes = await axios.get(
+        `https://api.openweathermap.org/geo/1.0/direct?q=${city}&limit=1&appid=${API_KEY}`
       );
-      setData(res.data);
-      setLocation(res.data.name);
-      fetchForecast(res.data.coord.lat, res.data.coord.lon);
-    } catch (err) {
+      if (!geoRes.data || geoRes.data.length === 0) {
+        alert("City not found. Please try another name.");
+        return;
+      }
+      const { lat, lon, name } = geoRes.data[0];
+      setLocation(name);
+      // Fetch weather using coordinates
+      await fetchWeatherByCoords(lat, lon);
+    } catch (err: any) {
       console.error("Error fetching weather:", err);
-      alert("City not found. Please try another name.");
+      if (err?.response?.status === 401) {
+        alert("API key issue. Please check your OpenWeather Student Plan access.");
+      } else {
+        alert("City not found. Please try another name.");
+      }
     }
   };
 
-  // Fetch 7-day forecast (aggregate from 5-day/3-hour forecast to avoid One Call 401)
-  const fetchForecast = async (lat: number, lon: number) => {
-    try {
-      // Use free 5-day / 3-hour forecast endpoint
-      const res = await axios.get(
-        `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`
-      );
-
-      const items = res.data.list as Array<any>;
-
-      // Group by calendar day and compute representative values
-      const dayMap: Record<string, { temps: number[]; icons: string[]; mains: string[]; dtList: number[] } > = {};
-      items.forEach((entry) => {
-        const date = new Date(entry.dt * 1000);
-        const key = date.toISOString().slice(0, 10); // YYYY-MM-DD
-        if (!dayMap[key]) {
-          dayMap[key] = { temps: [], icons: [], mains: [], dtList: [] };
-        }
-        dayMap[key].temps.push(entry.main.temp);
-        dayMap[key].icons.push(entry.weather?.[0]?.icon);
-        dayMap[key].mains.push(entry.weather?.[0]?.main);
-        dayMap[key].dtList.push(entry.dt);
-      });
-
-      const days = Object.keys(dayMap)
-        .sort()
-        .slice(1, 8) // skip today, take next 7 days
-        .map((key) => {
-          const bucket = dayMap[key];
-          const avgTemp = bucket.temps.reduce((a, b) => a + b, 0) / bucket.temps.length;
-          const icon = bucket.icons[Math.floor(bucket.icons.length / 2)] || "01d";
-          const main = bucket.mains[Math.floor(bucket.mains.length / 2)] || "Clear";
-          const dt = bucket.dtList[Math.floor(bucket.dtList.length / 2)] || Math.floor(new Date(key).getTime() / 1000);
-          return {
-            dt,
-            temp: { day: avgTemp },
-            weather: [{ icon, main }],
-          };
-        });
-
-      setForecast(days);
-    } catch (err) {
-      console.error("Error fetching forecast:", err);
-    }
-  };
 
   // Fetch city name suggestions
   const fetchSuggestions = async (query: string) => {
@@ -118,23 +83,92 @@ const Weather: React.FC = () => {
     }
   };
 
-  // Fetch weather by coordinates
+  // Fetch weather by coordinates using Current Weather + Daily Forecast (Student Plan compatible)
   const fetchWeatherByCoords = async (lat: number, lon: number) => {
     try {
-      const reverseGeo = await axios.get(
-        `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}`
+      // Get current weather (using current weather API which should be free tier)
+      let weatherData;
+      let cityName = "";
+      
+      try {
+        const currentRes = await axios.get(
+          `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`
+        );
+        weatherData = currentRes.data;
+        cityName = currentRes.data.name || "";
+      } catch (currentErr: any) {
+        // If current weather fails, try to get data from forecast endpoint
+        console.warn("Current weather API failed, using forecast data:", currentErr?.response?.status);
+      }
+      
+      // Get 8-day forecast (today + 7 future days) - this endpoint works with Student Plan
+      // We'll skip today to show next 7 days
+      const forecastRes = await axios.get(
+        `https://api.openweathermap.org/data/2.5/forecast/daily?lat=${lat}&lon=${lon}&cnt=8&units=metric&appid=${API_KEY}`
       );
-      const city = reverseGeo.data[0]?.name || "Unknown";
-      setLocation(city);
-
-      const res = await axios.get(
-        `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`
-      );
-      setData(res.data);
-      fetchForecast(lat, lon);
-    } catch (err) {
+      
+      // If we don't have current weather data, use first day of forecast as current
+      if (!weatherData && forecastRes.data.list && forecastRes.data.list.length > 0) {
+        const firstDay = forecastRes.data.list[0];
+        weatherData = {
+          main: {
+            temp: firstDay.temp.day,
+            feels_like: firstDay.feels_like.day,
+            humidity: firstDay.humidity,
+            pressure: firstDay.pressure,
+          },
+          weather: firstDay.weather,
+          wind: {
+            speed: (firstDay.speed || 0) * 3.6, // Convert m/s to km/h
+          },
+          visibility: 10000,
+          coord: { lat, lon },
+        };
+      }
+      
+      if (weatherData) {
+        setData(weatherData);
+      }
+      
+      // Use city name from forecast response or set location
+      if (forecastRes.data.city?.name) {
+        setLocation(forecastRes.data.city.name);
+      } else if (cityName) {
+        setLocation(cityName);
+      } else {
+        // Try reverse geocoding as last resort
+        try {
+          const reverseGeo = await axios.get(
+            `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}`
+          );
+          if (reverseGeo.data?.[0]?.name) {
+            setLocation(reverseGeo.data[0].name);
+          } else {
+            setLocation(`${lat.toFixed(2)}, ${lon.toFixed(2)}`);
+          }
+        } catch (geoErr) {
+          setLocation(`${lat.toFixed(2)}, ${lon.toFixed(2)}`);
+        }
+      }
+      
+      // Set forecast (skip today, take next 7 days from the list)
+      // The API returns 7 days, first one is today, so we take days 2-8 (7 days)
+      if (forecastRes.data.list && forecastRes.data.list.length > 1) {
+        setForecast(forecastRes.data.list.slice(1)); // Skip today, take remaining days
+      } else if (forecastRes.data.list && forecastRes.data.list.length > 0) {
+        // If only one day returned, use it (edge case)
+        setForecast(forecastRes.data.list);
+      }
+      
+    } catch (err: any) {
       console.error("Error fetching weather:", err);
-      setLocation("Kolkata");
+      if (err?.response?.status === 401) {
+        setLocation("API Key Issue");
+        alert("OpenWeather API key issue. Please verify your Student Plan access.");
+      } else {
+        setLocation("Error");
+        console.error("Weather fetch error details:", err.response?.data || err.message);
+      }
     }
   };
 

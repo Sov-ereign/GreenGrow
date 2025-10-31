@@ -9,26 +9,79 @@ const WeatherWidget: React.FC = () => {
   const API_KEY = import.meta.env.VITE_WEATHER_API_KEY;
   const navigate = useNavigate();
 
-  // Fetch weather by coordinates
+  // Fetch weather by coordinates using Current Weather API (Student Plan compatible)
   const fetchWeatherByCoords = async (lat: number, lon: number) => {
     if (!API_KEY) {
       setLocation("API Key Missing");
       return;
     }
     try {
-      const reverseGeo = await axios.get(
-        `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}`
-      );
-      const city = reverseGeo.data[0]?.name || "Unknown";
-      setLocation(city);
-
-      const res = await axios.get(
-        `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`
-      );
-      setData(res.data);
-    } catch (err) {
+      // Try current weather API first
+      let weatherData;
+      try {
+        const res = await axios.get(
+          `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`
+        );
+        weatherData = res.data;
+        if (res.data.name) {
+          setLocation(res.data.name);
+        }
+      } catch (currentErr: any) {
+        // If current weather fails, use first day from forecast
+        try {
+          const forecastRes = await axios.get(
+            `https://api.openweathermap.org/data/2.5/forecast/daily?lat=${lat}&lon=${lon}&cnt=1&units=metric&appid=${API_KEY}`
+          );
+          if (forecastRes.data.list && forecastRes.data.list.length > 0) {
+            const firstDay = forecastRes.data.list[0];
+            weatherData = {
+              main: {
+                temp: firstDay.temp.day,
+                feels_like: firstDay.feels_like.day,
+                humidity: firstDay.humidity,
+                pressure: firstDay.pressure,
+              },
+              weather: firstDay.weather,
+              wind: {
+                speed: (firstDay.speed || 0) * 3.6,
+              },
+              visibility: 10000,
+            };
+            if (forecastRes.data.city?.name) {
+              setLocation(forecastRes.data.city.name);
+            }
+          }
+        } catch (forecastErr) {
+          throw currentErr; // Throw original error
+        }
+      }
+      
+      if (weatherData) {
+        setData(weatherData);
+      }
+      
+      // If location still not set, try reverse geocoding or use coordinates
+      if (location === "Detecting...") {
+        try {
+          const reverseGeo = await axios.get(
+            `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}`
+          );
+          if (reverseGeo.data?.[0]?.name) {
+            setLocation(reverseGeo.data[0].name);
+          } else {
+            setLocation(`${lat.toFixed(2)}, ${lon.toFixed(2)}`);
+          }
+        } catch (geoErr) {
+          setLocation(`${lat.toFixed(2)}, ${lon.toFixed(2)}`);
+        }
+      }
+    } catch (err: any) {
       console.error("Error fetching weather:", err);
-      setLocation("Kolkata");
+      if (err?.response?.status === 401) {
+        setLocation("Invalid API Key");
+      } else {
+        setLocation("Error");
+      }
     }
   };
 
