@@ -13,6 +13,9 @@ __pycache__/
 # Node
 node_modules/
 
-# Model weights/binaries (optional; comment out if you want to track)
+# Model weights/binaries (ignored by default)
 *.h5
 *.weights.h5
+
+# Allowlist: track this specific weights file
+!model/disease_model.weights.h5
