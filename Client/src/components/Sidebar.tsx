@@ -38,7 +38,7 @@ const Sidebar: React.FC = () => {
             <Wheat className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-gray-800">FarmWise</h1>
+            <h1 className="text-xl font-semibold text-gray-800">GreenGrow</h1>
             <p className="text-sm text-gray-500">Advisory Dashboard</p>
           </div>
         </div>

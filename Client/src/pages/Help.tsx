@@ -29,7 +29,7 @@ const Help: React.FC = () => {
     {
       title: "Getting Started",
       icon: Book,
-      description: "Learn the basics of using FarmWise",
+      description: "Learn the basics of using GreenGrow",
       articles: 12
     },
     {
@@ -56,7 +56,7 @@ const Help: React.FC = () => {
     <div>
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Help Center</h1>
-        <p className="text-gray-600">Find answers to your questions and learn how to use FarmWise</p>
+        <p className="text-gray-600">Find answers to your questions and learn how to use GreenGrow</p>
       </div>
 
       {/* Search Bar */}
@@ -138,7 +138,7 @@ const Help: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-medium text-gray-800">Email Support</h3>
-                  <p className="text-sm text-gray-600">support@farmwise.com</p>
+                  <p className="text-sm text-gray-600">support@GreenGrow.com</p>
                 </div>
               </div>
             </div>

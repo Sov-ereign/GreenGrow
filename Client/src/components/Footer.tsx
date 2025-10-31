@@ -31,7 +31,7 @@ const Footer: React.FC = () => {
         </div>
         
         <div className="text-center md:text-right">
-          <p className="text-sm text-gray-500">© 2024 FarmWise Advisory</p>
+          <p className="text-sm text-gray-500">© 2024 GreenGrow Advisory</p>
           <p className="text-xs text-gray-400">Empowering farmers with smart technology</p>
         </div>
       </div>

@@ -232,7 +232,7 @@ const Support: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-medium text-gray-800">Email Support</h3>
-                  <p className="text-sm text-gray-600">support@farmwise.com</p>
+                  <p className="text-sm text-gray-600">support@GreenGrow.com</p>
                   <p className="text-xs text-blue-600">Response within 24 hours</p>
                 </div>
               </div>
