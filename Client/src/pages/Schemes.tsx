@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building2, FileText, Calendar, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Building2, FileText, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 
 const Schemes: React.FC = () => {
   const schemes = [
@@ -11,7 +11,8 @@ const Schemes: React.FC = () => {
       status: 'active',
       deadline: '2024-03-31',
       category: 'Income Support',
-      eligibility: 'Small & Marginal Farmers'
+      eligibility: 'Small & Marginal Farmers',
+      applyUrl: 'https://pmkisan.gov.in/'
     },
     {
       id: 2,
@@ -21,7 +22,8 @@ const Schemes: React.FC = () => {
       status: 'eligible',
       deadline: '2024-04-15',
       category: 'Insurance',
-      eligibility: 'All Farmers'
+      eligibility: 'All Farmers',
+      applyUrl: 'https://pmfby.gov.in/'
     },
     {
       id: 3,
@@ -31,7 +33,8 @@ const Schemes: React.FC = () => {
       status: 'applied',
       deadline: '2024-05-30',
       category: 'Soil Health',
-      eligibility: 'All Farmers'
+      eligibility: 'All Farmers',
+      applyUrl: 'https://soilhealth.dac.gov.in/'
     },
     {
       id: 4,
@@ -41,7 +44,8 @@ const Schemes: React.FC = () => {
       status: 'eligible',
       deadline: '2024-12-31',
       category: 'Credit',
-      eligibility: 'All Farmers'
+      eligibility: 'All Farmers',
+      applyUrl: 'https://www.myscheme.gov.in/schemes/kcc'
     },
     {
       id: 5,
@@ -51,7 +55,8 @@ const Schemes: React.FC = () => {
       status: 'active',
       deadline: 'Ongoing',
       category: 'Marketing',
-      eligibility: 'All Farmers'
+      eligibility: 'All Farmers',
+      applyUrl: 'https://enam.gov.in/'
     },
     {
       id: 6,
@@ -61,7 +66,8 @@ const Schemes: React.FC = () => {
       status: 'eligible',
       deadline: '2024-06-30',
       category: 'Organic Farming',
-      eligibility: 'Organic Farmers'
+      eligibility: 'Organic Farmers',
+      applyUrl: 'https://pgsindia-ncof.gov.in/'
     }
   ];
 
@@ -89,49 +95,6 @@ const Schemes: React.FC = () => {
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Government Schemes</h1>
         <p className="text-gray-600">Explore and apply for agricultural schemes and subsidies</p>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="h-6 w-6 text-green-500" />
-            </div>
-          </div>
-          <h3 className="text-sm font-medium text-gray-500 mb-1">Active Schemes</h3>
-          <p className="text-2xl font-bold text-gray-800">2</p>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-              <AlertCircle className="h-6 w-6 text-blue-500" />
-            </div>
-          </div>
-          <h3 className="text-sm font-medium text-gray-500 mb-1">Eligible For</h3>
-          <p className="text-2xl font-bold text-gray-800">4</p>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-              <Clock className="h-6 w-6 text-yellow-500" />
-            </div>
-          </div>
-          <h3 className="text-sm font-medium text-gray-500 mb-1">Applied</h3>
-          <p className="text-2xl font-bold text-gray-800">1</p>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-              <Building2 className="h-6 w-6 text-purple-500" />
-            </div>
-          </div>
-          <h3 className="text-sm font-medium text-gray-500 mb-1">Total Benefits</h3>
-          <p className="text-2xl font-bold text-gray-800">₹8,000</p>
-        </div>
       </div>
 
       {/* Schemes Grid */}
@@ -171,12 +134,26 @@ const Schemes: React.FC = () => {
             </div>
 
             <div className="flex space-x-2">
-              <button className="flex-1 bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition-colors text-sm font-medium">
+              <a
+                href={scheme.applyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`flex-1 text-center py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  scheme.status === 'eligible'
+                    ? 'bg-green-500 text-white hover:bg-green-600'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
                 {scheme.status === 'eligible' ? 'Apply Now' : 'View Details'}
-              </button>
-              <button className="px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors">
+              </a>
+              <a
+                href={scheme.applyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center"
+              >
                 <FileText className="h-4 w-4" />
-              </button>
+              </a>
             </div>
           </div>
         ))}
