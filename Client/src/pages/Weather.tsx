@@ -86,10 +86,28 @@ const Weather: React.FC = () => {
   // Fetch weather by coordinates using Current Weather + Daily Forecast (Student Plan compatible)
   const fetchWeatherByCoords = async (lat: number, lon: number) => {
     try {
+      // Get accurate location name first using reverse geocoding
+      let nextLocation: string | null = null;
+      try {
+        const reverseGeo = await axios.get(
+          `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}`
+        );
+        if (reverseGeo.data?.[0]) {
+          const geo = reverseGeo.data[0];
+          // Format: City, State, Country (if available)
+          const parts = [];
+          if (geo.name) parts.push(geo.name);
+          if (geo.state && geo.state !== geo.name) parts.push(geo.state);
+          if (geo.country) parts.push(geo.country);
+          nextLocation = parts.length > 0 ? parts.join(", ") : geo.name || null;
+        }
+      } catch (reverseErr) {
+        console.warn("Reverse geocoding failed, will try other methods:", reverseErr);
+      }
+
       // Get current weather (using current weather API which should be free tier)
       let weatherData;
       let cityName = "";
-      let nextLocation: string | null = null;
       
       try {
         const currentRes = await axios.get(
@@ -97,7 +115,10 @@ const Weather: React.FC = () => {
         );
         weatherData = currentRes.data;
         cityName = currentRes.data.name || "";
-        if (cityName) nextLocation = cityName;
+        // Use location from weather API only if reverse geocoding didn't work
+        if (!nextLocation && cityName) {
+          nextLocation = cityName;
+        }
       } catch (currentErr: any) {
         // If current weather fails, try to get data from forecast endpoint
         console.warn("Current weather API failed, using forecast data:", currentErr?.response?.status);
@@ -127,32 +148,22 @@ const Weather: React.FC = () => {
           coord: { lat, lon },
         };
       }
-      
-      if (weatherData) {
-        setData(weatherData);
-      }
 
-      // Choose location locally (do not rely on current state within same tick)
-      if (forecastRes.data.city?.name) {
+      // Use location from forecast only if reverse geocoding and weather API didn't work
+      if (!nextLocation && forecastRes.data.city?.name) {
         nextLocation = forecastRes.data.city.name;
       }
       if (!nextLocation && cityName) {
         nextLocation = cityName;
       }
-      if (!nextLocation) {
-        try {
-          const reverseGeo = await axios.get(
-            `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}`
-          );
-          if (reverseGeo.data?.[0]?.name) {
-            nextLocation = reverseGeo.data[0].name;
-          }
-        } catch {
-          // ignore
-        }
+      
+      if (weatherData) {
+        setData(weatherData);
       }
+
+      // Final fallback if no location found
       if (!nextLocation) {
-        nextLocation = `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+        nextLocation = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
       }
       setLocation(nextLocation);
       
@@ -171,7 +182,7 @@ const Weather: React.FC = () => {
         setLocation("API Key Issue");
         alert("OpenWeather API key issue. Please verify your Student Plan access.");
       } else {
-        setLocation("Error");
+        setLocation("Error loading weather");
         console.error("Weather fetch error details:", err.response?.data || err.message);
       }
     }
@@ -181,8 +192,20 @@ const Weather: React.FC = () => {
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => fetchWeatherByCoords(pos.coords.latitude, pos.coords.longitude),
-        () => fetchWeatherByCoords(22.5726, 88.3639) // Default: Kolkata
+        (pos) => {
+          // Use high accuracy coordinates
+          fetchWeatherByCoords(pos.coords.latitude, pos.coords.longitude);
+        },
+        (error) => {
+          console.warn("Geolocation error:", error);
+          // Try fallback to default location
+          fetchWeatherByCoords(22.5726, 88.3639); // Default: Kolkata
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000, // Cache for 5 minutes
+        }
       );
     } else {
       fetchWeatherByCoords(22.5726, 88.3639);
