@@ -18,19 +18,23 @@ import Community from "./pages/Community";
 import Support from "./pages/Support";
 import VoiceAssistant from "./pages/VoiceAssistant";
 import Register from "./pages/Register";
-import LocationDialog from "./pages/LocationDialog"; // ✅ Added
+import LocationDialog from "./pages/LocationDialog";
+import Login from "./pages/Login";
 
 function AppContent() {
   const location = useLocation();
-  const hideLayout = location.pathname === "/register";
+
+  // ✅ Corrected condition
+  const hideLayout =
+    location.pathname === "/register" || location.pathname === "/login";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 font-['Inter',sans-serif]">
-      {!hideLayout && <LocationDialog />}{" "}
-      {/* ✅ Show popup on all pages except Register */}
+      {!hideLayout && <LocationDialog />}
       {hideLayout ? (
         <Routes>
           <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<Login />} /> {/* ✅ fixed path */}
         </Routes>
       ) : (
         <Layout>

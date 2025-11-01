@@ -10,7 +10,7 @@ router.get('/prices', async (req, res) => {
         params: {
           'api-key': process.env.DATA_GOV_API_KEY,
           format: 'json',
-          limit: 50,
+          limit: 100,
           offset: 0
         }
       }

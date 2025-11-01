@@ -1,14 +1,18 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import WeatherWidget from "../components/WeatherWidget";
 import RecommendationsPanel from "../components/RecommendationsPanel";
 import StatsCards from "../components/StatsCards";
 
 const Home: React.FC = () => {
+  const [userName, setUserName] = useState("Guest");
+  useEffect(() => {
+    
+  }, []);
   return (
     <div>
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          Welcome back, Team Devnest!
+          Welcome back, Team Devnest
         </h1>
         <p className="text-gray-600">
           Here's what's happening on your farm today.

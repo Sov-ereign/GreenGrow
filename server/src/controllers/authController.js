@@ -36,6 +36,8 @@ export const signup = async (req, res, next) => {
       farmSize: user.farmSize,
       language: user.language,
     });
+
+    
   } catch (err) {
     next(err);
   }
@@ -59,9 +61,25 @@ export const login = async (req, res, next) => {
         farmSize: user.farmSize,
         language: user.language,
       });
+      return res.redirect('/');
     } else {
       res.status(401).json({ message: 'Invalid credentials' });
     }
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Logout
+export const logout = (req, res, next) => {
+  try {
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: false, 
+      sameSite: 'strict',
+    });
+
+    res.status(200).json({ message: 'Logged out successfully' });
   } catch (err) {
     next(err);
   }
