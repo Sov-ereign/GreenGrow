@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import axios from "axios";
 import { Save, BarChart3, IndianRupee, Wheat, Calendar } from "lucide-react";
 
 const FarmForm = () => {
@@ -9,6 +10,8 @@ const FarmForm = () => {
     daysToHarvest: "45",
   });
 
+  const [message, setMessage] = useState("");
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
@@ -16,9 +19,32 @@ const FarmForm = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form Data:", formData);
+    try {
+      // ✅ POST request to backend
+      const res = await axios.post(
+        "http://localhost:5000/api/farm",
+        formData,
+        { withCredentials: true } // cookie-based auth
+      );
+      setMessage("✅ Farm data saved successfully!");
+      console.log("Saved:", res.data);
+    } catch (err: any) {
+      console.error(err);
+      setMessage("❌ Error saving farm data");
+    }
+  };
+
+  const fetchSingleFarm = async (id: string) => {
+    try {
+      const res = await axios.get(`http://localhost:5000/api/farm/${id}`, {
+        withCredentials: true,
+      });
+      console.log("Fetched single farm:", res.data);
+    } catch (err) {
+      console.error("Error fetching farm:", err);
+    }
   };
 
   return (
@@ -111,6 +137,18 @@ const FarmForm = () => {
           Save Details
         </button>
       </form>
+
+      {message && (
+        <p className="mt-4 text-center font-medium text-gray-700">{message}</p>
+      )}
+
+      {/* Example button to fetch single farm */}
+      <button
+        onClick={() => fetchSingleFarm("PUT_FARM_ID_HERE")}
+        className="mt-4 bg-blue-600 text-white px-4 py-2 rounded"
+      >
+        Fetch Single Farm
+      </button>
     </div>
   );
 };
