@@ -5,6 +5,7 @@ import {
   Route,
   useLocation,
 } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import Weather from "./pages/Weather";
@@ -34,7 +35,7 @@ function AppContent() {
       {hideLayout ? (
         <Routes>
           <Route path="/register" element={<Register />} />
-          <Route path="/login" element={<Login />} /> {/* ✅ fixed path */}
+          <Route path="/login" element={<Login />} />
         </Routes>
       ) : (
         <Layout>
@@ -60,7 +61,9 @@ function AppContent() {
 function App() {
   return (
     <Router>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </Router>
   );
 }

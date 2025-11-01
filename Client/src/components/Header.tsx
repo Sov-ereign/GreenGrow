@@ -1,11 +1,15 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Bell, Search, User, Menu, Globe, ChevronDown } from "lucide-react";
+import { Bell, Search, User, Menu, Globe, ChevronDown, LogOut, LogIn } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 interface HeaderProps {
   onMenuClick?: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -144,14 +148,36 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               </div>
             </div>
 
-            <div className="flex items-center space-x-3 md:pl-4 md:border-l md:border-gray-200">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-medium text-gray-800">Team Devnest</p>
-                <p className="text-xs text-gray-500">Kolkata, India</p>
-              </div>
-              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                <User className="h-5 w-5 text-green-600" />
-              </div>
+            <div className="flex items-center space-x-2 sm:space-x-3 md:pl-4 md:border-l md:border-gray-200">
+              {user ? (
+                <>
+                  <div className="text-right hidden sm:block">
+                    <p className="text-sm font-medium text-gray-800">{user.fullName}</p>
+                    <p className="text-xs text-gray-500">{user.location || "India"}</p>
+                  </div>
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <User className="h-5 w-5 text-green-600" />
+                  </div>
+                  <button
+                    onClick={() => {
+                      logout();
+                      navigate("/login");
+                    }}
+                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Logout"
+                  >
+                    <LogOut className="h-5 w-5" />
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => navigate("/login")}
+                  className="flex items-center space-x-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium"
+                >
+                  <LogIn className="h-4 w-4" />
+                  <span className="hidden sm:inline">Login</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

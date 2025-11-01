@@ -6,8 +6,8 @@ export const protect = async (req, res, next) => {
     const token = req.cookies.token;
 
     if (!token) {
-      // Redirect to login page if no token
-      return res.redirect('/');
+      // Return JSON error for API routes
+      return res.status(401).json({ message: 'Not authenticated' });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -15,11 +15,11 @@ export const protect = async (req, res, next) => {
     req.user = await User.findById(decoded.id).select('-password');
 
     if (!req.user) {
-      return res.redirect('/');
+      return res.status(401).json({ message: 'User not found' });
     }
 
     next();
   } catch (err) {
-    return res.redirect('/');
+    return res.status(401).json({ message: 'Not authenticated' });
   }
 };
