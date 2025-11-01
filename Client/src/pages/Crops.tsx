@@ -1,39 +1,92 @@
-import React from 'react';
-import { Wheat, Sprout, Bug, Droplets, Calendar, TrendingUp } from 'lucide-react';
+import React, { useState } from "react";
 
 const Crops: React.FC = () => {
-  const crops = [
+  const [crops, setCrops] = useState([
     {
       id: 1,
-      name: 'Wheat',
-      area: '3.2 acres',
-      stage: 'Flowering',
-      health: 'Good',
+      name: "Wheat",
+      area: "3.2 acres",
+      stage: "Flowering",
+      health: "Good",
       daysToHarvest: 45,
-      expectedYield: '1,800 kg',
-      image: 'https://images.pexels.com/photos/326082/pexels-photo-326082.jpeg?auto=compress&cs=tinysrgb&w=400'
+      expectedYield: "1,800 kg",
+      image:
+        "https://images.pexels.com/photos/326082/pexels-photo-326082.jpeg?auto=compress&cs=tinysrgb&w=400",
     },
     {
       id: 2,
-      name: 'Rice',
-      area: '2.0 acres',
-      stage: 'Vegetative',
-      health: 'Excellent',
+      name: "Rice",
+      area: "2.0 acres",
+      stage: "Vegetative",
+      health: "Excellent",
       daysToHarvest: 85,
-      expectedYield: '2,200 kg',
-      image: 'https://images.pexels.com/photos/1459339/pexels-photo-1459339.jpeg?auto=compress&cs=tinysrgb&w=400'
+      expectedYield: "2,200 kg",
+      image:
+        "https://images.pexels.com/photos/1459339/pexels-photo-1459339.jpeg?auto=compress&cs=tinysrgb&w=400",
     },
     {
       id: 3,
-      name: 'Corn',
-      area: '1.5 acres',
-      stage: 'Maturity',
-      health: 'Fair',
+      name: "Corn",
+      area: "1.5 acres",
+      stage: "Maturity",
+      health: "Fair",
       daysToHarvest: 15,
-      expectedYield: '900 kg',
-      image: 'https://images.pexels.com/photos/547263/pexels-photo-547263.jpeg?auto=compress&cs=tinysrgb&w=400'
-    }
+      expectedYield: "900 kg",
+      image:
+        "https://images.pexels.com/photos/547263/pexels-photo-547263.jpeg?auto=compress&cs=tinysrgb&w=400",
+    },
+  ]);
+
+  const [showForm, setShowForm] = useState(false);
+  const [newCrop, setNewCrop] = useState({
+    name: "",
+    area: "",
+    stage: "",
+    health: "Good",
+    daysToHarvest: "",
+    expectedYield: "",
+    image: "",
+  });
+
+  // Predefined image options
+  const imageOptions = [
+    {
+      label: "Wheat",
+      url: "https://images.pexels.com/photos/326082/pexels-photo-326082.jpeg?auto=compress&cs=tinysrgb&w=400",
+    },
+    {
+      label: "Rice",
+      url: "https://images.pexels.com/photos/1459339/pexels-photo-1459339.jpeg?auto=compress&cs=tinysrgb&w=400",
+    },
+    {
+      label: "Corn",
+      url: "https://images.pexels.com/photos/547263/pexels-photo-547263.jpeg?auto=compress&cs=tinysrgb&w=400",
+    },
+    {
+      label: "Other (Dummy)",
+      url: "http://www.listercarterhomes.com/staff-member/natalie-naples/attachment/dummy-image-square/",
+    },
   ];
+
+  const handleAddCrop = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cropToAdd = {
+      ...newCrop,
+      id: crops.length + 1,
+      daysToHarvest: Number(newCrop.daysToHarvest),
+    };
+    setCrops([...crops, cropToAdd]);
+    setNewCrop({
+      name: "",
+      area: "",
+      stage: "",
+      health: "Good",
+      daysToHarvest: "",
+      expectedYield: "",
+      image: "",
+    });
+    setShowForm(false);
+  };
 
   const getHealthColor = (health: string) => {
     switch (health) {
@@ -46,9 +99,17 @@ const Crops: React.FC = () => {
 
   return (
     <div>
-      <div className="mb-4 md:mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Crop Management</h1>
-        <p className="text-sm md:text-base text-gray-600">Monitor and manage your crops for optimal yield</p>
+      <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Crop Management</h1>
+          <p className="text-sm md:text-base text-gray-600">Monitor and manage your crops for optimal yield</p>
+        </div>
+        <button
+          onClick={() => setShowForm(true)}
+          className="bg-green-600 text-white px-4 py-2 rounded-lg shadow hover:bg-green-700 transition text-sm md:text-base whitespace-nowrap"
+        >
+          + Add Crop
+        </button>
       </div>
 
       {/* Crop Overview Cards */}
@@ -91,7 +152,7 @@ const Crops: React.FC = () => {
                 </div>
               </div>
               
-              <button className="w-full mt-4 bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition-colors">
+              <button className="w-full mt-4 bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition-colors text-sm md:text-base">
                 View Details
               </button>
             </div>
@@ -99,40 +160,111 @@ const Crops: React.FC = () => {
         ))}
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl shadow-lg p-6 text-center hover:shadow-xl transition-shadow cursor-pointer">
-          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Droplets className="h-6 w-6 text-blue-500" />
+      {/* Add Crop Modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setShowForm(false)}
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 text-xl font-bold"
+            >
+              ✕
+            </button>
+            <h2 className="text-xl font-bold mb-4">Add New Crop</h2>
+            <form onSubmit={handleAddCrop} className="space-y-3">
+              <input
+                type="text"
+                placeholder="Name"
+                value={newCrop.name}
+                onChange={(e) =>
+                  setNewCrop({ ...newCrop, name: e.target.value })
+                }
+                className="w-full border rounded p-2 text-sm md:text-base"
+                required
+              />
+              <input
+                type="text"
+                placeholder="Area"
+                value={newCrop.area}
+                onChange={(e) =>
+                  setNewCrop({ ...newCrop, area: e.target.value })
+                }
+                className="w-full border rounded p-2 text-sm md:text-base"
+              />
+              <input
+                type="text"
+                placeholder="Stage"
+                value={newCrop.stage}
+                onChange={(e) =>
+                  setNewCrop({ ...newCrop, stage: e.target.value })
+                }
+                className="w-full border rounded p-2 text-sm md:text-base"
+              />
+              <select
+                value={newCrop.health}
+                onChange={(e) =>
+                  setNewCrop({ ...newCrop, health: e.target.value })
+                }
+                className="w-full border rounded p-2 text-sm md:text-base"
+              >
+                <option>Excellent</option>
+                <option>Good</option>
+                <option>Fair</option>
+              </select>
+              <input
+                type="number"
+                placeholder="Days to Harvest"
+                value={newCrop.daysToHarvest}
+                onChange={(e) =>
+                  setNewCrop({ ...newCrop, daysToHarvest: e.target.value })
+                }
+                className="w-full border rounded p-2 text-sm md:text-base"
+              />
+              <input
+                type="text"
+                placeholder="Expected Yield"
+                value={newCrop.expectedYield}
+                onChange={(e) =>
+                  setNewCrop({ ...newCrop, expectedYield: e.target.value })
+                }
+                className="w-full border rounded p-2 text-sm md:text-base"
+              />
+
+              {/* Image Dropdown */}
+              <select
+                value={newCrop.image}
+                onChange={(e) =>
+                  setNewCrop({ ...newCrop, image: e.target.value })
+                }
+                className="w-full border rounded p-2 text-sm md:text-base"
+              >
+                <option value="">Select Image</option>
+                {imageOptions.map((opt) => (
+                  <option key={opt.url} value={opt.url}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+
+              {/* Preview */}
+              {newCrop.image && (
+                <img
+                  src={newCrop.image}
+                  alt="Preview"
+                  className="w-full h-32 object-cover rounded mt-2"
+                />
+              )}
+
+              <button
+                type="submit"
+                className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition text-sm md:text-base"
+              >
+                Add Crop
+              </button>
+            </form>
           </div>
-          <h3 className="font-semibold text-gray-800 mb-2">Irrigation Schedule</h3>
-          <p className="text-sm text-gray-600">Manage watering times</p>
         </div>
-        
-        <div className="bg-white rounded-2xl shadow-lg p-6 text-center hover:shadow-xl transition-shadow cursor-pointer">
-          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Bug className="h-6 w-6 text-red-500" />
-          </div>
-          <h3 className="font-semibold text-gray-800 mb-2">Pest Control</h3>
-          <p className="text-sm text-gray-600">Monitor pest activity</p>
-        </div>
-        
-        <div className="bg-white rounded-2xl shadow-lg p-6 text-center hover:shadow-xl transition-shadow cursor-pointer">
-          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Sprout className="h-6 w-6 text-green-500" />
-          </div>
-          <h3 className="font-semibold text-gray-800 mb-2">Fertilizer Plan</h3>
-          <p className="text-sm text-gray-600">Nutrient management</p>
-        </div>
-        
-        <div className="bg-white rounded-2xl shadow-lg p-6 text-center hover:shadow-xl transition-shadow cursor-pointer">
-          <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Calendar className="h-6 w-6 text-purple-500" />
-          </div>
-          <h3 className="font-semibold text-gray-800 mb-2">Harvest Calendar</h3>
-          <p className="text-sm text-gray-600">Plan harvest dates</p>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

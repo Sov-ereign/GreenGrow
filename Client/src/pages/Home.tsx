@@ -1,9 +1,13 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import WeatherWidget from "../components/WeatherWidget";
 import RecommendationsPanel from "../components/RecommendationsPanel";
 import StatsCards from "../components/StatsCards";
 
 const Home: React.FC = () => {
+  const [userName, setUserName] = useState("Guest");
+  useEffect(() => {
+    
+  }, []);
   return (
     <div>
       <div className="mb-4 md:mb-6">
