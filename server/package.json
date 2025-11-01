@@ -5,7 +5,10 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "axicov:deploy": "powershell -ExecutionPolicy Bypass -File deploy-axicov.ps1",
+    "axicov:deploy:direct": "axicov deploy -k",
+    "axicov:status": "axicov status"
   },
   "dependencies": {
     "axios": "^1.13.1",
