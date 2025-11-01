@@ -18,13 +18,6 @@
 
 GreenGrow is a comprehensive agricultural advisory platform that leverages artificial intelligence to help farmers make informed decisions about crop cultivation, disease management, weather patterns, and market prices. It's designed to bridge the gap between traditional farming knowledge and modern AI technology, making advanced agricultural insights accessible to farmers everywhere.
 
-### 👤 User Roles
-
-| Role   | Permissions                                                              |
-|--------|---------------------------------------------------------------------------|
-| Guest  | View weather information, market prices, and general farming resources   |
-| User   | Register, log in, access AI chat assistant, upload crop images for disease detection, get personalized recommendations |
-| Admin  | Manage users, moderate content, view analytics, configure system settings |
 
 ## 🎬 Demo
 
@@ -45,9 +38,9 @@ GreenGrow is a comprehensive agricultural advisory platform that leverages artif
 | 👤 Name             | 📧 Email                        |
 |--------------------|---------------------------------|
 | 1. Somenath Gorai      |    somu8608@gmail.com    |
-| 2. Team Member 2      | teammember2@example.com         |
-| 3. Team Member 3| teammember3@example.com  |
-| 4. Team Member 4 | teammember4@example.com       |
+| 2. Rimanshu Patel      | rimanshupatel1@gmail.com         |
+| 3. Monish Mandal| monishmondal48@gmail.com  |
+| 4. Sudipta Roy | sudiptaroytheofficial@gmail.com       |
 
 ## 📋 Features Overview
 
