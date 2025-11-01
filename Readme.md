@@ -25,7 +25,9 @@ GreenGrow is a comprehensive agricultural advisory platform that leverages artif
 
   <a href="#" target="_blank">
 
-    <img src="https://img.shields.io/badge/🎥_Watch_Demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white&labelColor=FF0000" alt="Demo Video" />
+<a href="https://www.linkedin.com/posts/sov-ereign_greengrow-hackspire-futureinstitute-activity-7390292150980321281-fJZ3?utm_source=share&utm_medium=member_desktop&rcm=ACoAAFJgqL4Blt08GWuJ9AdUx5iQUQUE3O2mDc4" target="_blank">
+  <img src="https://img.shields.io/badge/🎥_Watch_Demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white&labelColor=FF0000" alt="Demo Video" />
+</a>
 
   </a>
 
