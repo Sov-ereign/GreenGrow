@@ -1,5 +1,14 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Bell, Search, User, Menu, Globe, ChevronDown, LogOut, LogIn } from "lucide-react";
+import {
+  Bell,
+  Search,
+  User,
+  Menu,
+  Globe,
+  ChevronDown,
+  LogOut,
+  LogIn,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
@@ -19,8 +28,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         {
           pageLanguage: "en",
           includedLanguages: "bn,en,hi,fr,de,ar,id,gu,ha",
-          layout: (window as any).google.translate.TranslateElement
-            .InlineLayout.SIMPLE,
+          layout: (window as any).google.translate.TranslateElement.InlineLayout
+            .SIMPLE,
           autoDisplay: false,
         },
         "google_translate_element"
@@ -39,7 +48,10 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
 
     // Close dropdown on outside click
     const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
       }
     };
@@ -103,25 +115,25 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               <Menu className="h-5 w-5" />
             </button>
             <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search for crops, weather, or advice..."
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search for crops, weather, or advice..."
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm md:text-base"
-          />
-        </div>
-      </div>
+              />
+            </div>
+          </div>
 
           {/* Bottom Row - Notifications, Translate, and User */}
           <div className="flex items-center justify-between md:justify-end space-x-4">
-        <div className="relative">
-          <button className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
-            <Bell className="h-5 w-5" />
-          </button>
-          <div className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full flex items-center justify-center">
-            <span className="text-xs text-white font-bold">3</span>
-          </div>
-        </div>
+            <div className="relative">
+              <button className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
+                <Bell className="h-5 w-5" />
+              </button>
+              <div className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full flex items-center justify-center">
+                <span className="text-xs text-white font-bold">3</span>
+              </div>
+            </div>
 
             {/* Translate Dropdown */}
             <div className="relative" ref={dropdownRef}>
@@ -130,7 +142,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                 className="flex items-center space-x-2 px-3 py-2 border border-gray-200 rounded-lg hover:border-green-400 hover:bg-green-50 transition text-sm"
               >
                 <Globe className="h-4 w-4 text-green-600" />
-                <span className="hidden sm:inline text-sm font-medium text-gray-700">Translate</span>
+                <span className="hidden sm:inline text-sm font-medium text-gray-700">
+                  Translate
+                </span>
                 <ChevronDown
                   className={`h-4 w-4 text-gray-500 transition-transform ${
                     open ? "rotate-180" : ""
@@ -141,10 +155,16 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               {/* Google Translate Element */}
               <div
                 className={`absolute right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-lg z-50 p-2 w-48 transition-all duration-200 ${
-                  open ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2 pointer-events-none"
+                  open
+                    ? "opacity-100 visible translate-y-0"
+                    : "opacity-0 invisible -translate-y-2 pointer-events-none"
                 }`}
               >
-                <div id="google_translate_element"></div>
+                <div
+                  id="google_translate_element"
+                  className=" text-gray-800 text-base hover:scale-[1.02] transition-transform"
+                  style={{ minHeight: "30px", minWidth: "100%" }}
+                ></div>
               </div>
             </div>
 
@@ -152,11 +172,15 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               {user ? (
                 <>
                   <div className="text-right hidden sm:block">
-                    <p className="text-sm font-medium text-gray-800">{user.fullName}</p>
-                    <p className="text-xs text-gray-500">{user.location || "India"}</p>
-          </div>
-          <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-            <User className="h-5 w-5 text-green-600" />
+                    <p className="text-sm font-medium text-gray-800">
+                      {user.fullName}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {user.location || "India"}
+                    </p>
+                  </div>
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <User className="h-5 w-5 text-green-600" />
                   </div>
                   <button
                     onClick={() => {
@@ -178,12 +202,16 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                   <span className="hidden sm:inline">Login</span>
                 </button>
               )}
+            </div>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
     </>
   );
 };
 
 export default Header;
+
+
+
+

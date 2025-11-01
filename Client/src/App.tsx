@@ -21,6 +21,8 @@ import VoiceAssistant from "./pages/VoiceAssistant";
 import Register from "./pages/Register";
 import LocationDialog from "./pages/LocationDialog";
 import Login from "./pages/Login";
+import VapiWidget from "./components/voice/VapiWidget";
+import FarmForm from "./pages/FarmForm";
 
 function AppContent() {
   const location = useLocation();
@@ -47,7 +49,10 @@ function AppContent() {
             <Route path="/schemes" element={<Schemes />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/chat" element={<Chat />} />
-            <Route path="/voice" element={<VoiceAssistant />} />
+            {/* <Route path="/voice" element={<VoiceAssistant />} /> */}
+            <Route path="/voice" element={<VapiWidget />} />
+            <Route path="/FarmForm" element={<FarmForm />} />
+
             <Route path="/help" element={<Help />} />
             <Route path="/community" element={<Community />} />
             <Route path="/support" element={<Support />} />

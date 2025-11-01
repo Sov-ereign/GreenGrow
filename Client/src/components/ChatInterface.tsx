@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { MessageCircle, Send, Bot, Image as ImageIcon, X } from "lucide-react";
+import { Bot, Send, Image as ImageIcon, X } from "lucide-react";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -7,7 +7,7 @@ const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState([
     {
       id: 1,
-      text: "Hello! I'm GreenGrow AI, your farming advisor. Ask me about crops, weather, or upload a plant image for disease detection!",
+      text: "👋 Hi there! I'm GreenGrow AI — your smart farming assistant. Ask about crops, weather, or upload a plant image for instant analysis!",
       sender: "ai",
       time: new Date().toLocaleTimeString([], {
         hour: "2-digit",
@@ -41,21 +41,17 @@ const ChatInterface: React.FC = () => {
   const removeImage = () => {
     setSelectedImage(null);
     setImagePreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const sendMessage = async () => {
     const hasText = newMessage.trim();
     const hasImage = selectedImage !== null;
-
     if ((!hasText && !hasImage) || loading) return;
 
-    // Add user message
     const userMsg = {
       id: messages.length + 1,
-      text: hasText ? newMessage : "📷 Analyzing plant image...",
+      text: hasText ? newMessage : "📷 Uploading plant image...",
       sender: "user",
       time: new Date().toLocaleTimeString([], {
         hour: "2-digit",
@@ -63,7 +59,6 @@ const ChatInterface: React.FC = () => {
       }),
       imageUrl: imagePreview,
     };
-
     setMessages((prev) => [...prev, userMsg]);
     const messageText = newMessage;
     setNewMessage("");
@@ -71,27 +66,15 @@ const ChatInterface: React.FC = () => {
 
     try {
       if (hasImage && selectedImage) {
-        // Send image for analysis
         const formData = new FormData();
         formData.append("image", selectedImage);
-
         const res = await fetch(`${API_BASE_URL}/api/chat/image-analysis`, {
           method: "POST",
           body: formData,
         });
-
-        if (!res.ok) {
-          throw new Error(`Server error: ${res.status}`);
-        }
-
         const data = await res.json();
-        let aiText = data.response || "I couldn't analyze the image. Please try again.";
-
-        // Add disease detection info if available
-        if (data.diseaseDetection) {
-          const detection = data.diseaseDetection;
-          aiText = `🔍 **Disease Detection Results:**\n${detection.disease || detection.predicted_class || "Unknown"} (${detection.confidence || 0}% confidence)\n\n${aiText}`;
-        }
+        const aiText =
+          data.response || "I couldn’t analyze the image. Please try again.";
 
         setMessages((prev) => [
           ...prev,
@@ -106,24 +89,16 @@ const ChatInterface: React.FC = () => {
             imageUrl: null,
           },
         ]);
-
-        // Clear image after sending
         removeImage();
       } else if (hasText) {
-        // Send text message
         const res = await fetch(`${API_BASE_URL}/api/chat/message`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message: messageText }),
         });
-
-        if (!res.ok) {
-          throw new Error(`Server error: ${res.status}`);
-        }
-
         const data = await res.json();
-        const aiText = data.response || "Sorry, I couldn't process your question.";
-
+        const aiText =
+          data.response || "Sorry, I couldn’t process your question.";
         setMessages((prev) => [
           ...prev,
           {
@@ -139,12 +114,11 @@ const ChatInterface: React.FC = () => {
         ]);
       }
     } catch (err: any) {
-      console.error("Chat error:", err);
       setMessages((prev) => [
         ...prev,
         {
           id: prev.length + 1,
-          text: `Error: ${err.message || "Failed to get response. Please check if the server is running."}`,
+          text: "⚠️ Error: Couldn’t connect to server. Please make sure it’s running.",
           sender: "ai",
           time: new Date().toLocaleTimeString([], {
             hour: "2-digit",
@@ -158,60 +132,53 @@ const ChatInterface: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-6 h-96 flex flex-col">
-      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-        <MessageCircle className="h-5 w-5 text-green-500 mr-2" />
-        GreenGrow AI
-      </h3>
+    <div className="bg-gradient-to-br from-green-50 to-white border border-green-100 rounded-3xl shadow-xl p-6 h-[600px] flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-green-100 pb-3 mb-4">
+        <div className="flex items-center space-x-2">
+          <Bot className="h-6 w-6 text-green-600" />
+          <h2 className="text-lg font-semibold text-gray-800">GreenGrow AI</h2>
+        </div>
+        <span className="text-sm text-gray-500">Online</span>
+      </div>
 
-      <div className="flex-1 overflow-y-auto space-y-3 mb-4">
-        {messages.map((message) => (
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-green-200 pr-2">
+        {messages.map((msg) => (
           <div
-            key={message.id}
+            key={msg.id}
             className={`flex ${
-              message.sender === "user" ? "justify-end" : "justify-start"
+              msg.sender === "user" ? "justify-end" : "justify-start"
             }`}
           >
             <div
-              className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
-                message.sender === "user"
-                  ? "bg-green-500 text-white"
-                  : "bg-gray-100 text-gray-800"
+              className={`rounded-2xl p-3 max-w-[80%] shadow-sm ${
+                msg.sender === "user"
+                  ? "bg-green-600 text-white rounded-br-none"
+                  : "bg-white border border-gray-100 text-gray-800 rounded-bl-none"
               }`}
             >
-              {message.sender === "ai" && (
-                <div className="flex items-center mb-1">
-                  <Bot className="h-3 w-3 mr-1" />
-                  <span className="text-xs text-gray-500">AI Advisor</span>
-                </div>
+              {msg.imageUrl && (
+                <img
+                  src={msg.imageUrl}
+                  alt="Uploaded"
+                  className="rounded-lg mb-2 max-h-40 object-cover"
+                />
               )}
-              {message.imageUrl && (
-                <div className="mb-2 rounded-lg overflow-hidden">
-                  <img
-                    src={message.imageUrl}
-                    alt="Uploaded plant"
-                    className="w-full h-auto max-h-32 object-contain"
-                  />
-                </div>
-              )}
-              <div className="text-sm whitespace-pre-wrap">{message.text}</div>
-              <div
-                className={`text-xs mt-1 ${
-                  message.sender === "user" ? "text-green-100" : "text-gray-400"
+              <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+              <p
+                className={`text-[10px] mt-1 text-right ${
+                  msg.sender === "user" ? "text-green-100" : "text-gray-400"
                 }`}
               >
-                {message.time}
-              </div>
+                {msg.time}
+              </p>
             </div>
           </div>
         ))}
         {loading && (
           <div className="flex justify-start">
-            <div className="max-w-xs lg:max-w-md px-4 py-2 rounded-2xl bg-gray-100 text-gray-800">
-              <div className="flex items-center mb-1">
-                <Bot className="h-3 w-3 mr-1" />
-                <span className="text-xs text-gray-500">AI Advisor</span>
-              </div>
+            <div className="rounded-2xl p-3 max-w-[80%] bg-white border border-gray-100 text-gray-800 shadow-sm">
               <p className="text-sm">Thinking...</p>
             </div>
           </div>
@@ -220,7 +187,7 @@ const ChatInterface: React.FC = () => {
 
       {/* Image Preview */}
       {imagePreview && (
-        <div className="mb-2 relative inline-block">
+        <div className="my-3 flex items-center space-x-2">
           <div className="relative">
             <img
               src={imagePreview}
@@ -234,10 +201,12 @@ const ChatInterface: React.FC = () => {
               <X className="h-3 w-3" />
             </button>
           </div>
+          <p className="text-xs text-gray-500">Image ready to send</p>
         </div>
       )}
 
-      <div className="flex space-x-2">
+      {/* Input Section */}
+      <div className="flex items-center space-x-2 mt-2">
         <input
           type="file"
           ref={fileInputRef}
@@ -248,26 +217,27 @@ const ChatInterface: React.FC = () => {
         />
         <label
           htmlFor="image-upload"
-          className="bg-gray-100 text-gray-700 p-2 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer"
-          title="Upload plant image"
+          className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full cursor-pointer transition"
         >
-          <ImageIcon className="h-4 w-4" />
+          <ImageIcon className="h-5 w-5 text-gray-600" />
         </label>
+
         <input
           type="text"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-          placeholder={selectedImage ? "Add a message (optional)..." : "Ask about crops, weather, or farming advice..."}
-          className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          placeholder="Ask about crops, weather, or farming tips..."
+          className="flex-1 bg-white border border-gray-200 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
           disabled={loading}
         />
+
         <button
           onClick={sendMessage}
-          className="bg-green-500 text-white p-2 rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+          className="p-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition disabled:opacity-50"
           disabled={loading || (!newMessage.trim() && !selectedImage)}
         >
-          <Send className="h-4 w-4" />
+          <Send className="h-5 w-5" />
         </button>
       </div>
     </div>
