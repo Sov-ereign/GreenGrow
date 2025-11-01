@@ -61,7 +61,7 @@ const RecommendationsPanel: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Personalized Recommendations</h2>
+      <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">Personalized Recommendations</h2>
       
       <div className="grid gap-4">
         {recommendations.map((rec) => {

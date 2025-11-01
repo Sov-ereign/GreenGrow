@@ -334,5 +334,186 @@ Be conversational and helpful. The response should be what Arav will say to the 
   }
 });
 
+// Live voice conversation endpoint with access to all website data
+router.post('/live-voice', async (req, res) => {
+  try {
+    const { message, conversationHistory = [] } = req.body;
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ 
+        error: 'Message is required',
+        response: "I didn't catch that. Could you repeat?"
+      });
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('GEMINI_API_KEY is not set in environment variables');
+      return res.status(500).json({ 
+        error: 'Gemini API key not configured',
+        response: "I'm sorry, the voice assistant is not properly configured."
+      });
+    }
+
+    // Fetch current website data for context
+    let weatherData = null;
+    let marketData = null;
+    let newsData = null;
+    
+    try {
+      // Try to get user's location from request (if available)
+      const userLocation = req.headers['x-user-location'] || null;
+      
+      // Fetch weather data (try to get API key from env or use provided one)
+      const weatherApiKey = process.env.WEATHER_API_KEY || process.env.VITE_WEATHER_API_KEY || req.body.weatherApiKey;
+      if (weatherApiKey) {
+        try {
+          // Default to a common location or use provided location
+          const lat = userLocation ? JSON.parse(userLocation).lat : 28.6139; // Delhi default
+          const lon = userLocation ? JSON.parse(userLocation).lon : 77.2090;
+          
+          const weatherRes = await axios.get(
+            `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${weatherApiKey}`
+          );
+          weatherData = weatherRes.data;
+        } catch (weatherErr) {
+          console.warn('Weather data fetch failed:', weatherErr.message);
+        }
+      } else {
+        console.warn('Weather API key not available - weather data will not be included');
+      }
+      
+      // Fetch market data using internal API
+      try {
+        const baseUrl = req.protocol + '://' + req.get('host');
+        const marketRes = await axios.get(`${baseUrl}/api/mandi/prices`);
+        
+        if (marketRes.data && marketRes.data.records) {
+          marketData = marketRes.data.records;
+        }
+      } catch (marketErr) {
+        console.warn('Market data fetch failed:', marketErr.message);
+        // Use fallback data
+        marketData = [
+          { commodity: 'Wheat', market: 'Azadpur Mandi', state: 'Delhi', min_price: '2200', max_price: '2350', modal_price: '2275' },
+          { commodity: 'Rice', market: 'Delhi Grain Market', state: 'Delhi', min_price: '1850', max_price: '2000', modal_price: '1925' },
+          { commodity: 'Tomato', market: 'Lasalgaon', state: 'Maharashtra', min_price: '35', max_price: '50', modal_price: '42' },
+          { commodity: 'Onion', market: 'Lasalgaon', state: 'Maharashtra', min_price: '1800', max_price: '2200', modal_price: '2000' },
+        ];
+      }
+      
+      // Fetch news data
+      try {
+        const newsRes = await axios.get(
+          `https://newsapi.org/v2/everything?q=agriculture+farming&sortBy=publishedAt&apiKey=${process.env.NEWS_API_KEY}&pageSize=5`
+        );
+        if (newsRes.data.articles) {
+          newsData = newsRes.data.articles.slice(0, 5).map((article) => ({
+            title: article.title,
+            description: article.description,
+            url: article.url
+          }));
+        }
+      } catch (newsErr) {
+        console.warn('News data fetch failed:', newsErr.message);
+      }
+    } catch (dataErr) {
+      console.warn('Error fetching context data:', dataErr.message);
+    }
+
+    // Build context for Gemini
+    let contextInfo = `You are Arav, an intelligent voice assistant for GreenGrow, a farming website. You're having a LIVE CONVERSATION with a farmer. Be conversational, friendly, and helpful. You have access to real-time data:\n\n`;
+    
+    if (weatherData) {
+      contextInfo += `CURRENT WEATHER DATA:\n`;
+      contextInfo += `- Location: ${weatherData.name || 'Unknown'}\n`;
+      contextInfo += `- Temperature: ${weatherData.main?.temp || 'N/A'}°C\n`;
+      contextInfo += `- Condition: ${weatherData.weather?.[0]?.description || 'N/A'}\n`;
+      contextInfo += `- Humidity: ${weatherData.main?.humidity || 'N/A'}%\n`;
+      contextInfo += `- Wind Speed: ${weatherData.wind?.speed || 'N/A'} m/s\n\n`;
+    }
+    
+    if (marketData && marketData.length > 0) {
+      contextInfo += `CURRENT MARKET PRICES (sample):\n`;
+      marketData.slice(0, 10).forEach((item) => {
+        contextInfo += `- ${item.commodity}: ₹${item.modal_price}/quintal (${item.market}, ${item.state})\n`;
+      });
+      contextInfo += `\n`;
+    }
+    
+    if (newsData && newsData.length > 0) {
+      contextInfo += `RECENT AGRICULTURE NEWS:\n`;
+      newsData.forEach((item) => {
+        contextInfo += `- ${item.title}\n`;
+      });
+      contextInfo += `\n`;
+    }
+
+    // Build conversation history
+    let conversationContext = '';
+    if (conversationHistory.length > 0) {
+      conversationContext = 'Previous conversation:\n';
+      conversationHistory.slice(-6).forEach((msg) => {
+        conversationContext += `${msg.role === 'user' ? 'User' : 'Arav'}: ${msg.content}\n`;
+      });
+      conversationContext += '\n';
+    }
+
+    const prompt = `${contextInfo}${conversationContext}Current user message: "${message}"
+
+Respond naturally as if you're talking to them. You can:
+- Answer questions about weather, market prices, farming techniques
+- Provide advice based on current data
+- Have a natural conversation about agriculture
+- Be helpful and friendly
+
+Keep your response concise (2-3 sentences max) since this is a voice conversation. Speak naturally as Arav.`;
+
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+
+    let geminiResponse;
+    try {
+      geminiResponse = await axios.post(API_URL, {
+        contents: [{ parts: [{ text: prompt }] }],
+      }, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (apiErr) {
+      console.error('Gemini API error:', {
+        status: apiErr.response?.status,
+        data: apiErr.response?.data,
+        message: apiErr.message
+      });
+      throw new Error(`Gemini API error: ${apiErr.response?.data?.error?.message || apiErr.message}`);
+    }
+
+    if (!geminiResponse || !geminiResponse.data) {
+      throw new Error('Invalid response from Gemini API');
+    }
+
+    const aiText = geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || 
+                   "I understand. How can I help you further?";
+
+    res.json({ 
+      response: aiText.trim(),
+      weatherData: weatherData ? {
+        location: weatherData.name,
+        temp: weatherData.main?.temp,
+        condition: weatherData.weather?.[0]?.description
+      } : null,
+      marketData: marketData ? marketData.slice(0, 5) : null
+    });
+  } catch (err) {
+    console.error('Error in live voice:', err);
+    
+    const errorMessage = err.response?.data?.error?.message || err.message || 'Unknown error';
+    
+    res.status(500).json({ 
+      error: 'Failed to process live voice message',
+      details: errorMessage,
+      response: "I'm sorry, I encountered an issue. Could you try again?"
+    });
+  }
+});
+
 export default router;
 

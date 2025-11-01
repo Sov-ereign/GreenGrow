@@ -31,6 +31,7 @@ const corsOptions = {
     "Content-Type",
     "Accept",
     "Authorization",
+    "X-User-Location",
   ],
   exposedHeaders: ["Set-Cookie"],
   optionsSuccessStatus: 204,

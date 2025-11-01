@@ -192,11 +192,11 @@ const Market: React.FC = () => {
 
   return (
     <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-1">
+      <div className="mb-4 md:mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-1">
           Market Overview
         </h1>
-        <p className="text-gray-600">
+        <p className="text-sm md:text-base text-gray-600">
           Real-time commodity prices and market trends
         </p>
       </div>
@@ -251,20 +251,20 @@ const Market: React.FC = () => {
               ))}
             </select>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto -mx-6 md:mx-0 px-4 md:px-0">
             <table className="w-full min-w-max">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">
+                  <th className="text-left py-2 md:py-3 px-2 md:px-4 font-medium text-xs md:text-sm text-gray-600">
                     Crop
                   </th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">
+                  <th className="text-left py-2 md:py-3 px-2 md:px-4 font-medium text-xs md:text-sm text-gray-600">
                     Current Price
                   </th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">
+                  <th className="text-left py-2 md:py-3 px-2 md:px-4 font-medium text-xs md:text-sm text-gray-600">
                     Change
                   </th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">
+                  <th className="text-left py-2 md:py-3 px-2 md:px-4 font-medium text-xs md:text-sm text-gray-600">
                     Market
                   </th>
                 </tr>
@@ -272,7 +272,7 @@ const Market: React.FC = () => {
               <tbody>
                 {transformed.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="text-center py-6 text-gray-500">
+                    <td colSpan={4} className="text-center py-6 text-sm md:text-base text-gray-500">
                       No records found.
                     </td>
                   </tr>
@@ -283,21 +283,21 @@ const Market: React.FC = () => {
                       key={index}
                       className="border-b border-gray-100 hover:bg-gray-50"
                     >
-                      <td className="py-4 px-4">
-                        <div className="font-medium text-gray-800">
+                      <td className="py-3 md:py-4 px-2 md:px-4">
+                        <div className="font-medium text-xs md:text-sm text-gray-800">
                           {item.crop}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-xs text-gray-500">
                           Last week: {item.lastWeek}
                         </div>
                       </td>
-                      <td className="py-4 px-4">
-                        <div className="font-semibold text-gray-800">
+                      <td className="py-3 md:py-4 px-2 md:px-4">
+                        <div className="font-semibold text-xs md:text-sm text-gray-800">
                           {item.currentPrice}
                         </div>
-                        <div className="text-sm text-gray-500">per quintal</div>
+                        <div className="text-xs text-gray-500">per quintal</div>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-3 md:py-4 px-2 md:px-4">
                         <div
                           className={`flex items-center space-x-1 ${
                             item.trend === "up"
@@ -306,14 +306,14 @@ const Market: React.FC = () => {
                           }`}
                         >
                           {item.trend === "up" ? (
-                            <TrendingUp className="h-4 w-4" />
+                            <TrendingUp className="h-3 w-3 md:h-4 md:w-4" />
                           ) : (
-                            <TrendingDown className="h-4 w-4" />
+                            <TrendingDown className="h-3 w-3 md:h-4 md:w-4" />
                           )}
-                          <span className="font-medium">{item.change}</span>
+                          <span className="font-medium text-xs md:text-sm">{item.change}</span>
                         </div>
                       </td>
-                      <td className="py-4 px-4 text-sm text-gray-600">
+                      <td className="py-3 md:py-4 px-2 md:px-4 text-xs md:text-sm text-gray-600">
                         {item.market}
                       </td>
                     </tr>

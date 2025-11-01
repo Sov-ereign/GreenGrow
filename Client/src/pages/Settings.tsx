@@ -29,9 +29,9 @@ const Settings: React.FC = () => {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Settings</h1>
-        <p className="text-gray-600">
+      <div className="mb-4 md:mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Settings</h1>
+        <p className="text-sm md:text-base text-gray-600">
           Manage your account and application preferences
         </p>
       </div>

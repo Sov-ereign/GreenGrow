@@ -46,13 +46,13 @@ const Crops: React.FC = () => {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Crop Management</h1>
-        <p className="text-gray-600">Monitor and manage your crops for optimal yield</p>
+      <div className="mb-4 md:mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Crop Management</h1>
+        <p className="text-sm md:text-base text-gray-600">Monitor and manage your crops for optimal yield</p>
       </div>
 
       {/* Crop Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
         {crops.map((crop) => (
           <div key={crop.id} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
             <div className="h-48 bg-cover bg-center" style={{ backgroundImage: `url(${crop.image})` }}>

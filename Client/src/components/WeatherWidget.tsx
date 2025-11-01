@@ -119,29 +119,29 @@ const WeatherWidget: React.FC = () => {
 
   return (
     <div
-      className="bg-gradient-to-br from-green-100 to-green-50 rounded-2xl shadow-md p-6 cursor-pointer hover:shadow-lg transition-all"
+      className="bg-gradient-to-br from-green-100 to-green-50 rounded-xl md:rounded-2xl shadow-md p-4 md:p-6 cursor-pointer hover:shadow-lg transition-all"
       onClick={() => navigate("/weather")}
     >
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold text-gray-800 flex items-center">
-          <MapPin className="h-4 w-4 text-red-500 mr-1" />
-          {location}
+        <h2 className="text-base md:text-lg font-semibold text-gray-800 flex items-center truncate flex-1 min-w-0">
+          <MapPin className="h-4 w-4 text-red-500 mr-1 flex-shrink-0" />
+          <span className="truncate">{location}</span>
         </h2>
         <img
           src={`https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`}
           alt="Weather"
-          className="h-12 w-12"
+          className="h-10 w-10 md:h-12 md:w-12 flex-shrink-0 ml-2"
         />
       </div>
 
-      <div className="text-4xl font-bold text-gray-800 mb-1">
+      <div className="text-3xl md:text-4xl font-bold text-gray-800 mb-1">
         {Math.round(data.main.temp)}°C
       </div>
-      <div className="text-sm text-gray-600 capitalize mb-3">
+      <div className="text-xs md:text-sm text-gray-600 capitalize mb-3">
         {data.weather[0].description}
       </div>
 
-      <div className="flex justify-between text-sm text-gray-700">
+      <div className="flex justify-between text-xs md:text-sm text-gray-700">
         <div className="flex items-center">
           <Droplets className="h-4 w-4 text-blue-500 mr-1" />
           {data.main.humidity}%
