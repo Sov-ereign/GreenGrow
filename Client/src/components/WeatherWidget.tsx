@@ -16,15 +16,34 @@ const WeatherWidget: React.FC = () => {
       return;
     }
     try {
+      // Get accurate location name first using reverse geocoding
+      let nextLocation: string | null = null;
+      try {
+        const reverseGeo = await axios.get(
+          `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}`
+        );
+        if (reverseGeo.data?.[0]) {
+          const geo = reverseGeo.data[0];
+          // Format: City, State, Country (if available)
+          const parts = [];
+          if (geo.name) parts.push(geo.name);
+          if (geo.state && geo.state !== geo.name) parts.push(geo.state);
+          if (geo.country) parts.push(geo.country);
+          nextLocation = parts.length > 0 ? parts.join(", ") : geo.name || null;
+        }
+      } catch (reverseErr) {
+        console.warn("Reverse geocoding failed, will try other methods:", reverseErr);
+      }
+
       // Try current weather API first
       let weatherData;
-      let nextLocation: string | null = null;
       try {
         const res = await axios.get(
           `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`
         );
         weatherData = res.data;
-        if (res.data.name) {
+        // Use location from weather API only if reverse geocoding didn't work
+        if (!nextLocation && res.data.name) {
           nextLocation = res.data.name;
         }
       } catch (currentErr: any) {
@@ -48,7 +67,8 @@ const WeatherWidget: React.FC = () => {
               },
               visibility: 10000,
             };
-            if (forecastRes.data.city?.name) {
+            // Use location from forecast only if reverse geocoding didn't work
+            if (!nextLocation && forecastRes.data.city?.name) {
               nextLocation = forecastRes.data.city.name;
             }
           }
@@ -61,21 +81,9 @@ const WeatherWidget: React.FC = () => {
         setData(weatherData);
       }
       
-      // Decide final location once, without relying on current state value
+      // Final fallback if no location found
       if (!nextLocation) {
-        try {
-          const reverseGeo = await axios.get(
-            `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}`
-          );
-          if (reverseGeo.data?.[0]?.name) {
-            nextLocation = reverseGeo.data[0].name;
-          }
-        } catch {
-          // ignore
-        }
-      }
-      if (!nextLocation) {
-        nextLocation = `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+        nextLocation = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
       }
       setLocation(nextLocation);
     } catch (err: any) {
@@ -83,7 +91,7 @@ const WeatherWidget: React.FC = () => {
       if (err?.response?.status === 401) {
         setLocation("Invalid API Key");
       } else {
-        setLocation("Error");
+        setLocation("Error loading weather");
       }
     }
   };
@@ -93,8 +101,20 @@ const WeatherWidget: React.FC = () => {
     if (!API_KEY) return;
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => fetchWeatherByCoords(pos.coords.latitude, pos.coords.longitude),
-        () => fetchWeatherByCoords(22.5726, 88.3639) // Default: Kolkata
+        (pos) => {
+          // Use high accuracy coordinates
+          fetchWeatherByCoords(pos.coords.latitude, pos.coords.longitude);
+        },
+        (error) => {
+          console.warn("Geolocation error:", error);
+          // Try fallback to default location
+          fetchWeatherByCoords(22.5726, 88.3639); // Default: Kolkata
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000, // Cache for 5 minutes
+        }
       );
     } else {
       fetchWeatherByCoords(22.5726, 88.3639);
