@@ -127,14 +127,14 @@ const VoiceAssistant: React.FC = () => {
         }
 
         // Update current transcript display
-        setCurrentTranscript(fullTranscript);
+          setCurrentTranscript(fullTranscript);
         
         // Accumulate final results
         if (hasNewFinal) {
           // Rebuild transcript from all final results
-          let finalTranscript = '';
-          for (let i = 0; i < event.results.length; i++) {
-            if (event.results[i].isFinal) {
+        let finalTranscript = '';
+        for (let i = 0; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
               finalTranscript += event.results[i][0].transcript;
               if (i < event.results.length - 1) {
                 finalTranscript += ' ';
@@ -239,7 +239,7 @@ const VoiceAssistant: React.FC = () => {
           return;
         }
         
-        console.warn('Speech recognition error:', event.error);
+          console.warn('Speech recognition error:', event.error);
       };
 
       recognitionRef.current.onend = () => {
@@ -279,10 +279,10 @@ const VoiceAssistant: React.FC = () => {
       clearSilenceTimeout();
       if (recognitionRef.current) {
         try {
-          recognitionRef.current.stop();
+        recognitionRef.current.stop();
         } catch (err) {
           // Ignore
-        }
+      }
       }
     };
   }, [isInCall, isProcessing, isSpeaking]);
@@ -298,7 +298,7 @@ const VoiceAssistant: React.FC = () => {
     if (synthRef.current.speaking || synthRef.current.pending) {
       synthRef.current.cancel();
     }
-
+    
     const utterance = new SpeechSynthesisUtterance(text.trim());
     utterance.rate = 0.9;
     utterance.pitch = 1;
@@ -310,12 +310,12 @@ const VoiceAssistant: React.FC = () => {
       
       // Stop listening when AI starts speaking
       if (recognitionRef.current && isListening) {
-        try {
-          recognitionRef.current.stop();
-        } catch (err) {
-          // Ignore
-        }
-        setIsListening(false);
+          try {
+            recognitionRef.current.stop();
+          } catch (err) {
+            // Ignore
+          }
+          setIsListening(false);
       }
       
       // Clear any silence timeout
@@ -344,8 +344,8 @@ const VoiceAssistant: React.FC = () => {
               setIsListening(true);
             } else {
               console.warn('Failed to resume listening:', err);
-            }
-          }
+                  }
+                }
         }
       }, 500);
     };
@@ -393,11 +393,11 @@ const VoiceAssistant: React.FC = () => {
     if (!message.trim() || isProcessing || isSpeaking) {
       return;
     }
-
+    
     console.log('Processing user message:', message);
     setIsProcessing(true);
     setError(null);
-    
+
     // Add user message to conversation
     const userMessage: Message = {
       role: 'user',
@@ -489,12 +489,12 @@ const VoiceAssistant: React.FC = () => {
     accumulatedTranscriptRef.current = '';
     isUserSpeakingRef.current = false;
     clearSilenceTimeout();
-
+      
     // Speak greeting after a moment
-    setTimeout(() => {
-      speak('Hello! I am Arav, your farming assistant. How can I help you today?', () => {
+      setTimeout(() => {
+        speak('Hello! I am Arav, your farming assistant. How can I help you today?', () => {
         console.log('Greeting finished');
-      });
+        });
     }, 500);
   };
 
@@ -506,7 +506,7 @@ const VoiceAssistant: React.FC = () => {
     
     if (recognitionRef.current) {
       try {
-        recognitionRef.current.stop();
+      recognitionRef.current.stop();
       } catch (err) {
         // Ignore
       }
