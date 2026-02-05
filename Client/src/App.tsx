@@ -1,4 +1,3 @@
-import React from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -17,12 +16,15 @@ import Chat from "./pages/Chat";
 import Help from "./pages/Help";
 import Community from "./pages/Community";
 import Support from "./pages/Support";
-import VoiceAssistant from "./pages/VoiceAssistant";
 import Register from "./pages/Register";
 import LocationDialog from "./pages/LocationDialog";
 import Login from "./pages/Login";
 import VapiWidget from "./components/voice/VapiWidget";
 import FarmForm from "./pages/FarmForm";
+import DiseasePrediction from "./pages/DiseasePrediction";
+import DroneModule from "./pages/DroneModule";
+import CropPrediction from "./pages/CropPrediction";
+import CropProductionPrediction from "./pages/CropProductionPrediction";
 
 function AppContent() {
   const location = useLocation();
@@ -52,6 +54,10 @@ function AppContent() {
             {/* <Route path="/voice" element={<VoiceAssistant />} /> */}
             <Route path="/voice" element={<VapiWidget />} />
             <Route path="/FarmForm" element={<FarmForm />} />
+            <Route path="/disease-prediction" element={<DiseasePrediction />} />
+            <Route path="/drone-module" element={<DroneModule />} />
+            <Route path="/crop-prediction" element={<CropPrediction />} />
+            <Route path="/crop-production" element={<CropProductionPrediction />} />
 
             <Route path="/help" element={<Help />} />
             <Route path="/community" element={<Community />} />

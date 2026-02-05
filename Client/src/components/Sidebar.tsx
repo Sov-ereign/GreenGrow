@@ -10,6 +10,10 @@ import {
   MessageCircle,
   Voicemail,
   X,
+  Leaf,
+  Plane,
+  Sprout,
+  TrendingUp,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -27,6 +31,30 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       label: "Voice Assistant",
       icon: Voicemail,
       path: "/voice",
+    },
+    {
+      id: "disease",
+      label: "Disease Prediction",
+      icon: Leaf,
+      path: "/disease-prediction"
+    },
+    {
+      id: "drone",
+      label: "Drone Module",
+      icon: Plane,
+      path: "/drone-module"
+    },
+    {
+      id: "crop-prediction",
+      label: "Crop Prediction",
+      icon: Sprout,
+      path: "/crop-prediction"
+    },
+    {
+      id: "crop-production",
+      label: "Crop Production",
+      icon: TrendingUp,
+      path: "/crop-production"
     },
     { id: "weather", label: "Weather", icon: CloudRain, path: "/weather" },
     { id: "crops", label: "Crops", icon: Wheat, path: "/crops" },
@@ -67,11 +95,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               key={item.id}
               to={item.path}
               onClick={onClose}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 text-left ${
-                isActive
-                  ? "bg-green-50 text-green-700 border-l-4 border-green-500"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-800"
-              }`}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 text-left ${isActive
+                ? "bg-green-50 text-green-700 border-l-4 border-green-500"
+                : "text-gray-600 hover:bg-gray-50 hover:text-gray-800"
+                }`}
             >
               <Icon className="h-5 w-5" />
               <span className="font-medium">{item.label}</span>
