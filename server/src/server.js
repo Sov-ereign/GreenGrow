@@ -1,6 +1,6 @@
-import mongoose from 'mongoose';
-import dotenv from 'dotenv';
-import app from './app.js';
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+import app from "./app.js";
 
 dotenv.config();
 
@@ -18,17 +18,24 @@ const startServer = async () => {
         socketTimeoutMS: 45000,
         connectTimeoutMS: 10000,
         retryWrites: true,
-        w: 'majority',
+        w: "majority",
       });
       console.log(`MongoDB connected: ${mongoose.connection.host}`);
     } catch (err) {
-      console.warn('MongoDB connection failed. Continuing without DB.', err?.message || err);
-      console.warn('Make sure MONGO_URI is set correctly in your .env file');
-      console.warn('Format: mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<database>?retryWrites=true&w=majority');
+      console.warn(
+        "MongoDB connection failed. Continuing without DB.",
+        err?.message || err
+      );
+      console.warn("Make sure MONGO_URI is set correctly in your .env file");
+      console.warn(
+        "Format: mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<database>?retryWrites=true&w=majority"
+      );
     }
   } else {
-    console.warn('MONGO_URI not set. Skipping MongoDB connection.');
-    console.warn('Create a .env file in the server directory with: MONGO_URI=your_connection_string');
+    console.warn("MONGO_URI not set. Skipping MongoDB connection.");
+    console.warn(
+      "Create a .env file in the server directory with: MONGO_URI=your_connection_string"
+    );
   }
 };
 
