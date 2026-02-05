@@ -3,6 +3,13 @@
 venv/
 env/
 
+# Environment variables (contains sensitive API keys)
+.env
+Client/.env
+server/.env
+*.env
+!.env.example
+
 # Datasets
 dataset/
 
