@@ -24,7 +24,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
 
   const menuItems = [
-    { id: "home", label: "Home", icon: Home, path: "/" },
+    { id: "home", label: "Home", icon: Home, path: "/home" },
     { id: "chat", label: "AI Chat", icon: MessageCircle, path: "/chat" },
     {
       id: "voice",
