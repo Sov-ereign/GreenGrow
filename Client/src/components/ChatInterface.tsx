@@ -482,19 +482,8 @@ export default function AgriSmartAssistant() {
     return keywords.some((keyword) => input.toLowerCase().includes(keyword));
   };
 
-  // Function to generate response using Gemini API
+  // Function to generate response using Groq API
   const generateResponse = async (input: string): Promise<string> => {
-    if (!isAgricultureRelated(input)) {
-      const errorMessages: Record<string, string> = {
-        en: "I'm here to assist only with agriculture-related questions. Please ask something related to farming or agriculture.",
-        bn: 'আমি শুধুমাত্র কৃষি সম্পর্কিত প্রশ্নের উত্তর দিতে পারি। দয়া করে চাষ বা কৃষি সম্পর্কিত কিছু জিজ্ঞাসা করুন।',
-        hi: 'मैं केवल कृषि से संबंधित सवालों का जवाब दे सकता हूँ। कृपया खेती या कृषि से संबंधित कुछ पूछें।',
-        ta: 'நான் விவசாயம் தொடர்பான கேள்விகளுக்கு மட்டுமே பதிலளிக்க முடியும். தயவுசெய்து விவசாயம் அல்லது பயிரிடுதல் தொடர்பானவற்றைக் கேளுங்கள்.',
-        te: 'నేను వ్యవసాయ సంబంధిత ప్రశ్నలకు మాత్రమే సమాధానం ఇవ్వగలను. దయచేసి వ్యవసాయం లేదా కృషి గురించి ఏదైనా అడగండి.',
-        mr: 'मी फक्त शेतीशी संबंधित प्रश्नांची उत्तरे देऊ शकतो. कृपया शेती किंवा कृषीशी संबंधित काहीतरी विचारा.',
-      };
-      return errorMessages[language] || errorMessages['en'];
-    }
 
     const languageMap: Record<string, string> = {
       en: 'English',
