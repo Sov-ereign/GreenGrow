@@ -27,6 +27,7 @@ import DroneModule from "./pages/DroneModule";
 import CropPrediction from "./pages/CropPrediction";
 import CropProductionPrediction from "./pages/CropProductionPrediction";
 import IoTConnect from "./pages/IoTConnect";
+import IvrDialer from "./pages/IvrDialer";
 import Index from "./components/Index";
 
 const AppLayout = () => {
@@ -58,6 +59,7 @@ function AppContent() {
             <Route path="/settings" element={<Settings />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/voice" element={<VapiWidget />} />
+            <Route path="/ivr-dialer" element={<IvrDialer />} />
             <Route path="/FarmForm" element={<FarmForm />} />
             <Route path="/disease-prediction" element={<DiseasePrediction />} />
             <Route path="/drone-module" element={<DroneModule />} />

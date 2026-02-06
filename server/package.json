@@ -23,7 +23,8 @@
     "mongodb": "^7.0.0",
     "mongoose": "^8.20.3",
     "morgan": "^1.10.0",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "twilio": "^4.23.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

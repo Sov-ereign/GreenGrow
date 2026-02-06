@@ -4,6 +4,7 @@ import {
   getGroqModel,
   getMessageText,
 } from "../services/groqClient.js";
+import twilio from "twilio";
 
 const router = express.Router();
 
@@ -53,6 +54,44 @@ Keep it concise (1-2 sentences), friendly, and practical.`;
 
   return getMessageText(data) || "I'm sorry, I couldn't generate a response.";
 };
+
+router.get("/token", (req, res) => {
+  try {
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const apiKey = process.env.TWILIO_API_KEY;
+    const apiSecret = process.env.TWILIO_API_SECRET;
+    const twimlAppSid = process.env.TWILIO_TWIML_APP_SID;
+
+    if (!accountSid || !apiKey || !apiSecret || !twimlAppSid) {
+      return res.status(500).json({
+        error: "Twilio credentials not configured",
+      });
+    }
+
+    const AccessToken = twilio.jwt.AccessToken;
+    const VoiceGrant = AccessToken.VoiceGrant;
+
+    const rawIdentity =
+      (req.query.identity && String(req.query.identity)) || "greengrow-web";
+    const identity = rawIdentity.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 32);
+
+    const voiceGrant = new VoiceGrant({
+      outgoingApplicationSid: twimlAppSid,
+      incomingAllow: false,
+    });
+
+    const token = new AccessToken(accountSid, apiKey, apiSecret, {
+      identity,
+      ttl: 3600,
+    });
+    token.addGrant(voiceGrant);
+
+    res.json({ token: token.toJwt() });
+  } catch (err) {
+    console.error("Failed to generate Twilio token:", err);
+    res.status(500).json({ error: "Failed to generate Twilio token" });
+  }
+});
 
 // Entry point: language selection
 router.post("/voice", (req, res) => {

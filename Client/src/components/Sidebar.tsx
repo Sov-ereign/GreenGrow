@@ -9,6 +9,7 @@ import {
   Settings,
   MessageCircle,
   Voicemail,
+  PhoneCall,
   X,
   Leaf,
   Plane,
@@ -31,6 +32,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       label: "Voice Assistant",
       icon: Voicemail,
       path: "/voice",
+    },
+    {
+      id: "ivr-dialer",
+      label: "IVR Dialer",
+      icon: PhoneCall,
+      path: "/ivr-dialer",
     },
     {
       id: "disease",
