@@ -4,7 +4,7 @@ import { Menu, X, ChevronDown, Globe, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // Logo
-import logoImage from "../../Images/Agrinova logo.png";
+import logoImage from "../../Images/Agrinova Logo.png";
 
 const languages = [
     { code: "en", name: "English" },
