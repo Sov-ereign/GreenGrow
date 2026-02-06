@@ -10,7 +10,7 @@ const testimonials = [
     location: "Punjab",
     image: "https://images.unsplash.com/photo-1566753323558-f4e0952af115?q=80&w=1921&auto=format&fit=crop",
     rating: 5,
-    text: "Agrinova's soil analysis and crop recommendations have transformed my farming practices. I've seen a 40% increase in yield and significant cost savings on fertilizers by using just what my soil needs."
+    text: "GreenGrow's soil analysis and crop recommendations have transformed my farming practices. I've seen a 40% increase in yield and significant cost savings on fertilizers by using just what my soil needs."
   },
   {
     id: 2,
@@ -26,7 +26,7 @@ const testimonials = [
     location: "Uttar Pradesh",
     image: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=1974&auto=format&fit=crop",
     rating: 4,
-    text: "I was skeptical about technology in farming, but the Agrinova app is so user-friendly. The disease prediction feature helped me save my tomato crop from blight by identifying it early."
+    text: "I was skeptical about technology in farming, but the GreenGrow app is so user-friendly. The disease prediction feature helped me save my tomato crop from blight by identifying it early."
   },
   {
     id: 4,
@@ -100,7 +100,7 @@ export default function TestimonialsSection() {
         <div className="text-center mb-16">
           <span className="text-agri-600 font-semibold uppercase tracking-wider text-sm">Success Stories</span>
           <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mt-2">
-            Farmers Trust Agrinova
+            Farmers Trust GreenGrow
           </h2>
         </div>
 

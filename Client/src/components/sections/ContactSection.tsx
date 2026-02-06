@@ -65,7 +65,7 @@ export default function ContactSection() {
         <div className="text-center mb-16">
           <span className="text-agri-600 font-semibold uppercase tracking-wider text-sm">Get in Touch</span>
           <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mt-2">
-            Contact Agrinova
+            Contact GreenGrow
           </h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto mt-4">
             Have questions about our technology or need support? We're here to help you optimize your farming operations.
@@ -111,7 +111,7 @@ export default function ContactSection() {
                   </div>
                   <div>
                     <h4 className="font-semibold text-agri-100 mb-1">Email</h4>
-                    <p className="text-white text-lg">info@agrinova.com</p>
+                    <p className="text-white text-lg">info@GreenGrow.com</p>
                     <p className="text-agri-200 text-sm mt-1">Our friendly team is here to help.</p>
                   </div>
                 </motion.div>

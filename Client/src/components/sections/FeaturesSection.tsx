@@ -71,7 +71,7 @@ export default function FeaturesSection() {
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-16 space-y-4">
-          <span className="text-agri-600 font-semibold tracking-wider uppercase text-sm">Why Choose AgriNova?</span>
+          <span className="text-agri-600 font-semibold tracking-wider uppercase text-sm">Why Choose GreenGrow?</span>
           <h2 className="text-3xl md:text-5xl font-bold text-gray-900">
             Innovative Technology for <br />
             <span className="text-agri-600 relative inline-block">

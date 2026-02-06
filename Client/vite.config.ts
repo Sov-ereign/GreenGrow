@@ -9,15 +9,15 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.png', 'apple-touch-icon.png'],
+      includeAssets: ['logo-favicon.png', 'logo-apple-touch.png'],
       devOptions: {
         enabled: true,
         type: 'module',
       },
       manifest: {
-        name: 'Agrinova',
-        short_name: 'Agrinova',
-        description: 'Agrinova farm intelligence and services platform.',
+        name: 'GreenGrow',
+        short_name: 'GreenGrow',
+        description: 'GreenGrow farm intelligence and services platform.',
         start_url: '/',
         scope: '/',
         display: 'standalone',
@@ -26,23 +26,23 @@ export default defineConfig({
         theme_color: '#16a34a',
         icons: [
           {
-            src: '/icons/icon-192.png',
+            src: '/icons/logo-icon-192.png',
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: '/icons/icon-512.png',
+            src: '/icons/logo-icon-512.png',
             sizes: '512x512',
             type: 'image/png',
           },
           {
-            src: '/icons/icon-192-maskable.png',
+            src: '/icons/logo-icon-192-maskable.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'maskable',
           },
           {
-            src: '/icons/icon-512-maskable.png',
+            src: '/icons/logo-icon-512-maskable.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',

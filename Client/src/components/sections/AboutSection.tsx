@@ -64,7 +64,7 @@ export default function AboutSection() {
             className="w-full lg:w-1/2"
           >
             <motion.span variants={fadeInUp} className="inline-block px-4 py-1.5 rounded-full bg-agri-100 text-agri-700 font-semibold text-sm mb-4">
-              About Agrinova
+              About GreenGrow
             </motion.span>
 
             <motion.h2 variants={fadeInUp} className="text-3xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight">
@@ -72,7 +72,7 @@ export default function AboutSection() {
             </motion.h2>
 
             <motion.p variants={fadeInUp} className="text-lg text-gray-600 mb-6 leading-relaxed">
-              Agrinova was founded in 2020 with a vision to revolutionize farming in India. We combine deep agricultural expertise with cutting-edge AI and data science to solve the real-world challenges faced by farmers today.
+              GreenGrow was founded in 2020 with a vision to revolutionize farming in India. We combine deep agricultural expertise with cutting-edge AI and data science to solve the real-world challenges faced by farmers today.
             </motion.p>
 
             <motion.p variants={fadeInUp} className="text-lg text-gray-600 mb-8 leading-relaxed">

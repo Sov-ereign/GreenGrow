@@ -4,7 +4,6 @@ import { Menu, X, ChevronDown, Globe, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // Logo
-import logoImage from "../../Images/Agrinova Logo.png";
 
 const languages = [
     { code: "en", name: "English" },
@@ -82,7 +81,7 @@ export default function Navbar() {
                         onClick={(e) => handleNavClick(e, "hero")}
                         className="flex items-center gap-2"
                     >
-                        <img src={logoImage} alt="logo" className="w-10 h-10" />
+                        <img src="/logo.jpg" alt="logo" className="w-10 h-10" />
                         <span className="text-2xl font-bold gradient-text">GreenGrow</span>
                     </a>
 

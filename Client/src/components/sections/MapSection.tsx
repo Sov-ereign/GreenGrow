@@ -121,7 +121,7 @@ export default function MapSection() {
         <div className="text-center mb-16">
           <span className="text-agri-600 font-semibold uppercase tracking-wider text-sm">Nationwide Impact</span>
           <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mt-2">
-            Agrinova Across India
+            GreenGrow Across India
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto mt-4">
             Our platform is active across multiple states in India, helping thousands of farmers improve their agricultural practices.
