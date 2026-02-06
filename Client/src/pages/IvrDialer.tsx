@@ -17,6 +17,8 @@ const IvrDialer: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [lastEvent, setLastEvent] = useState<string>("Not connected");
   const deviceRef = useRef<Device | null>(null);
+  const connectionRef = useRef<ReturnType<Device["connect"]> | null>(null);
+  const [dialBuffer, setDialBuffer] = useState<string>("");
 
   const statusLabel = useMemo(() => {
     switch (status) {
@@ -89,6 +91,7 @@ const IvrDialer: React.FC = () => {
       setLastEvent("Dialing...");
       const connection = await device.connect();
       if (connection) {
+        connectionRef.current = connection;
         setStatus("in-call");
         setLastEvent("Connected to IVR");
       }
@@ -101,9 +104,23 @@ const IvrDialer: React.FC = () => {
   const endCall = () => {
     if (deviceRef.current) {
       deviceRef.current.disconnectAll();
+      connectionRef.current = null;
       setStatus("ready");
       setLastEvent("Call ended");
     }
+  };
+
+  const sendDigits = (digit: string) => {
+    if (!connectionRef.current) {
+      setLastEvent("Start a call to send digits");
+      return;
+    }
+    connectionRef.current.sendDigits(digit);
+    setDialBuffer((prev) => `${prev}${digit}`.slice(-16));
+  };
+
+  const clearDigits = () => {
+    setDialBuffer("");
   };
 
   useEffect(() => {
@@ -176,6 +193,51 @@ const IvrDialer: React.FC = () => {
                 End Call
               </button>
             </div>
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-gray-100 bg-white p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">DTMF Dialer</h3>
+              <p className="text-sm text-gray-500">
+                Use to enter IVR options (1, 2, 3, etc.)
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs uppercase tracking-wide text-gray-400">
+                Input
+              </p>
+              <p className="text-sm font-semibold text-gray-800">
+                {dialBuffer || "—"}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            {["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"].map(
+              (digit) => (
+                <button
+                  key={digit}
+                  onClick={() => sendDigits(digit)}
+                  className="rounded-xl border border-gray-200 bg-gray-50 py-3 text-lg font-semibold text-gray-700 hover:bg-gray-100"
+                >
+                  {digit}
+                </button>
+              )
+            )}
+          </div>
+
+          <div className="mt-4 flex items-center justify-between">
+            <p className="text-xs text-gray-500">
+              Digits send instantly during an active call.
+            </p>
+            <button
+              onClick={clearDigits}
+              className="text-sm font-semibold text-gray-600 hover:text-gray-800"
+            >
+              Clear
+            </button>
           </div>
         </div>
 
