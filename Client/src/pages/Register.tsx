@@ -66,7 +66,7 @@ export default function Register() {
 
     try {
       await register(formData);
-      navigate("/");
+      navigate("/home");
     } catch (err: any) {
       setError(err.message || "Registration failed. Please try again.");
     } finally {

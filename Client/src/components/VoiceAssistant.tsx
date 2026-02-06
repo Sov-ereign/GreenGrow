@@ -22,7 +22,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ onNavigate, onAction })
   const [response, setResponse] = useState('');
   const [isVisible, setIsVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
 
@@ -49,13 +49,13 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ onNavigate, onAction })
             fullTranscript += ' ';
           }
         }
-        
+
         setTranscript(fullTranscript);
-        
+
         // Check if we have any final results
         let hasFinalResult = false;
         let finalTranscript = '';
-        
+
         for (let i = 0; i < event.results.length; i++) {
           if (event.results[i].isFinal) {
             hasFinalResult = true;
@@ -69,7 +69,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ onNavigate, onAction })
             break;
           }
         }
-        
+
         // If we have a final result, process it and stop
         if (hasFinalResult && finalTranscript.trim()) {
           recognitionRef.current.stop(); // Stop listening after final result
@@ -87,12 +87,12 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ onNavigate, onAction })
 
       recognitionRef.current.onerror = (event: any) => {
         console.error('Speech recognition error:', event.error);
-        
+
         // Don't show error for 'no-speech' if we're just waiting
         if (event.error !== 'no-speech') {
           setError(`Speech recognition error: ${event.error}`);
         }
-        
+
         // Only stop if it's a critical error
         if (event.error === 'aborted' || event.error === 'not-allowed') {
           setIsListening(false);
@@ -126,12 +126,12 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ onNavigate, onAction })
       utterance.rate = 0.9;
       utterance.pitch = 1;
       utterance.volume = 1;
-      
+
       // Stop speaking if user starts talking
       utterance.onstart = () => {
         // This will be handled by onspeechstart
       };
-      
+
       synthRef.current.speak(utterance);
     }
   };
@@ -145,7 +145,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ onNavigate, onAction })
 
     let data: any = null;
     try {
-      // Send command to Gemini API for interpretation
+      // Send command to Groq API for interpretation
       const res = await fetch(`${API_BASE_URL}/api/chat/voice-command`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -256,7 +256,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ onNavigate, onAction })
       setError(null);
       setIsVisible(true);
       setIsListening(true);
-      
+
       // Start recognition first
       try {
         recognitionRef.current.start();
@@ -391,11 +391,10 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ onNavigate, onAction })
           <button
             onClick={toggleAssistant}
             disabled={isProcessing}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
-              isListening
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${isListening
                 ? 'bg-red-500 text-white hover:bg-red-600'
                 : 'bg-green-500 text-white hover:bg-green-600'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {isListening ? (
               <>

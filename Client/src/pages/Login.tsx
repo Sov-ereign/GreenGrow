@@ -38,7 +38,7 @@ export default function Login() {
     setLoading(true);
     try {
       await login(formData.email, formData.password);
-      navigate("/");
+      navigate("/home");
     } catch (err: any) {
       setError(err.message || "Invalid credentials. Please try again.");
     } finally {
