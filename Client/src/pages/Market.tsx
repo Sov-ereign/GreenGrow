@@ -65,55 +65,58 @@ const Market: React.FC = () => {
     topPerformer: "N/A",
   });
 
-  // --- DATA FETCHING ---
+  // --- STATIC DATA ---
+  const staticRecords: MandiRecord[] = [
+    { commodity: "Wheat", market: "Azadpur Mandi", state: "Delhi", min_price: "2200", max_price: "2400", modal_price: "2320" },
+    { commodity: "Rice", market: "Delhi Grain Market", state: "Delhi", min_price: "1800", max_price: "2050", modal_price: "1950" },
+    { commodity: "Tomato", market: "Lasalgaon", state: "Maharashtra", min_price: "28", max_price: "52", modal_price: "42" },
+    { commodity: "Onion", market: "Lasalgaon", state: "Maharashtra", min_price: "1600", max_price: "2200", modal_price: "1980" },
+    { commodity: "Potato", market: "Agra", state: "Uttar Pradesh", min_price: "900", max_price: "1200", modal_price: "1050" },
+    { commodity: "Maize", market: "Davangere", state: "Karnataka", min_price: "1650", max_price: "1900", modal_price: "1780" },
+    { commodity: "Cotton", market: "Warangal", state: "Telangana", min_price: "6800", max_price: "7400", modal_price: "7100" },
+    { commodity: "Soybean", market: "Indore", state: "Madhya Pradesh", min_price: "4200", max_price: "4700", modal_price: "4520" },
+    { commodity: "Mustard", market: "Alwar", state: "Rajasthan", min_price: "5200", max_price: "5650", modal_price: "5480" },
+    { commodity: "Groundnut", market: "Rajkot", state: "Gujarat", min_price: "6200", max_price: "6900", modal_price: "6550" },
+    { commodity: "Tur (Arhar)", market: "Gulbarga", state: "Karnataka", min_price: "7300", max_price: "7800", modal_price: "7550" },
+    { commodity: "Chana", market: "Bhopal", state: "Madhya Pradesh", min_price: "5150", max_price: "5600", modal_price: "5380" },
+  ];
 
-  const fetchNews = async () => {
-    try {
-      const res = await fetch("https://greengrow-wufp.onrender.com/api/news");
-      if (!res.ok) throw new Error("News API not found");
-      const data = await res.json();
-      setNews((prevNews) => [...prevNews, ...(data.news || [])]);
-    } catch (err) {
-      console.error("Error fetching news:", err);
-    }
-  };
+  const staticNews: NewsItem[] = [
+    { title: "Tomato prices stabilize after mid-week spike", time: "Today", impact: "neutral" },
+    { title: "Onion arrivals increase in Maharashtra mandis", time: "2h ago", impact: "positive" },
+    { title: "Wheat demand steady ahead of procurement drive", time: "3h ago", impact: "positive" },
+    { title: "Cotton prices soften on higher arrivals", time: "4h ago", impact: "negative" },
+    { title: "Soybean futures gain on export optimism", time: "5h ago", impact: "positive" },
+  ];
+
+  const staticNewsMore: NewsItem[] = [
+    { title: "Mustard prices hold firm in northern markets", time: "6h ago", impact: "neutral" },
+    { title: "Maize demand improves across southern belts", time: "7h ago", impact: "positive" },
+    { title: "Chana trades range-bound on low supply", time: "8h ago", impact: "neutral" },
+  ];
 
   const handleLoadMoreNews = async () => {
     setMoreNewsLoading(true);
-    await fetchNews();
-    setMoreNewsLoading(false);
+    setTimeout(() => {
+      setNews((prevNews) => [...prevNews, ...staticNewsMore]);
+      setMoreNewsLoading(false);
+    }, 500);
   };
 
   useEffect(() => {
-    const fetchInitialPrices = async () => {
-      setPricesLoading(true);
-      try {
-        const res = await fetch("https://greengrow-wufp.onrender.com/api/mandi/prices");
-        if (!res.ok) throw new Error("Failed to fetch mandi prices");
-        const data = await res.json();
-        const recs = data.records || [];
-        
-        setRecords(recs);
-        setFiltered(recs);
-        const uniqueStates = Array.from(
-          new Set(recs.map((r: MandiRecord) => r.state))
-        ).sort();
-        setStates(["All", ...uniqueStates]);
-      } catch (err) {
-        console.error("Error fetching prices:", err);
-      } finally {
-        setPricesLoading(false);
-      }
-    };
+    setPricesLoading(true);
+    setNewsLoading(true);
 
-    const fetchInitialNews = async () => {
-      setNewsLoading(true);
-      await fetchNews();
-      setNewsLoading(false);
-    };
+    setRecords(staticRecords);
+    setFiltered(staticRecords);
+    const uniqueStates = Array.from(
+      new Set(staticRecords.map((r) => r.state))
+    ).sort();
+    setStates(["All", ...uniqueStates]);
+    setNews(staticNews);
 
-    fetchInitialPrices();
-    fetchInitialNews();
+    setPricesLoading(false);
+    setNewsLoading(false);
   }, []);
 
   // --- DATA COMPUTATION ---
