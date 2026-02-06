@@ -3,6 +3,9 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Calendar, MapPin, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import programImage1 from "@/Images/istockphoto-1360520451-612x612.jpg";
+import programImage2 from "@/Images/istockphoto-1386152719-612x612.jpg";
+import programImage4 from "@/Images/image_750x500_657ad9e35f2bc.jpg";
 
 const programs = [
   {
@@ -12,7 +15,7 @@ const programs = [
     date: "Monthly",
     location: "Multiple Locations",
     participants: "500+ per month",
-    imageUrl: "src/Images/istockphoto-1360520451-612x612.jpg"
+    imageUrl: programImage1
   },
   {
     id: 2,
@@ -21,7 +24,7 @@ const programs = [
     date: "Bi-weekly",
     location: "Regional Centers",
     participants: "300+ per session",
-    imageUrl: "src/Images/istockphoto-1386152719-612x612.jpg"
+    imageUrl: programImage2
   },
   {
     id: 3,
@@ -39,7 +42,7 @@ const programs = [
     date: "Quarterly",
     location: "Schools & Colleges",
     participants: "750+ per quarter",
-    imageUrl: "src/Images/image_750x500_657ad9e35f2bc.jpg"
+    imageUrl: programImage4
   }
 ];
 
