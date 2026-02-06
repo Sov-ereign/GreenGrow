@@ -4,19 +4,28 @@ import WeatherWidget from "../components/WeatherWidget";
 import RecommendationsPanel from "../components/RecommendationsPanel";
 import StatsCards from "../components/StatsCards";
 import { useNavigate } from "react-router-dom";
-import { Plus, Droplets, Power, Wifi, WifiOff } from "lucide-react";
+import { Plus, Droplets, AlertCircle, Settings, Activity } from "lucide-react";
 
 const Home: React.FC = () => {
-  const Navigate = useNavigate();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const userName = user?.fullName || "Guest";
-  const [sprinklerOn, setSprinklerOn] = useState(false);
-  const [showConnectMessage, setShowConnectMessage] = useState(false);
 
-  const handleSprinklerToggle = () => {
-    setSprinklerOn(!sprinklerOn);
-    setShowConnectMessage(true);
-    setTimeout(() => setShowConnectMessage(false), 3000);
+  // IoT device connection state (false = not connected)
+  const [isDeviceConnected] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
+
+  const handleStartWatering = () => {
+    if (!isDeviceConnected) {
+      setShowAlert(true);
+    } else {
+      // Future: Start watering logic
+      console.log("Starting watering...");
+    }
+  };
+
+  const handleConnectDevice = () => {
+    navigate("/iot-connect");
   };
 
   return (
@@ -33,7 +42,7 @@ const Home: React.FC = () => {
             </p>
           </div>
           <button
-            onClick={() => Navigate("/FarmForm")}
+            onClick={() => navigate("/FarmForm")}
             className="flex items-center space-x-2 px-4 py-2.5 bg-white hover:bg-green-50 text-green-600 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:scale-105 font-medium"
           >
             <span className="hidden sm:inline">Add Farm</span>
@@ -47,101 +56,131 @@ const Home: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <RecommendationsPanel />
-
-          {/* IoT Sprinkler Control Section */}
-          <div className="bg-gradient-to-br from-blue-50 via-white to-cyan-50 rounded-2xl shadow-lg border-2 border-blue-100 p-6 hover:shadow-xl transition-all">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className="p-3 bg-blue-100 rounded-xl">
-                  <Droplets className="h-7 w-7 text-blue-600" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-800">IoT Sprinkler System</h2>
-                  <p className="text-sm text-gray-500">Smart irrigation control</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2 text-sm">
-                {showConnectMessage ? (
-                  <span className="flex items-center text-orange-600 font-medium animate-pulse">
-                    <WifiOff className="h-4 w-4 mr-1" />
-                    Not Connected
-                  </span>
-                ) : (
-                  <span className="flex items-center text-gray-400">
-                    <WifiOff className="h-4 w-4 mr-1" />
-                    Offline
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Connection Status Message */}
-            {showConnectMessage && (
-              <div className="mb-4 p-4 bg-orange-50 border-l-4 border-orange-400 rounded-lg animate-fade-in">
-                <div className="flex items-start">
-                  <Wifi className="h-5 w-5 text-orange-500 mr-3 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-semibold text-orange-800">Connect IoT Device</p>
-                    <p className="text-xs text-orange-600 mt-1">
-                      Please connect your IoT sprinkler device to enable remote control.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Control Panel */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-white rounded-xl border-2 border-gray-100">
-                <div className="flex items-center space-x-3">
-                  <Power className={`h-6 w-6 ${sprinklerOn ? 'text-green-500' : 'text-gray-400'}`} />
-                  <div>
-                    <p className="font-semibold text-gray-800">Sprinkler Status</p>
-                    <p className="text-sm text-gray-500">
-                      {sprinklerOn ? 'Active - Watering in progress' : 'Inactive - Ready to start'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Toggle Switch */}
-                <button
-                  onClick={handleSprinklerToggle}
-                  className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${sprinklerOn ? 'bg-green-500' : 'bg-gray-300'
-                    }`}
-                >
-                  <span
-                    className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform ${sprinklerOn ? 'translate-x-7' : 'translate-x-1'
-                      }`}
-                  />
-                </button>
-              </div>
-
-              {/* Info Cards */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200">
-                  <p className="text-xs text-blue-600 font-medium mb-1">Coverage Area</p>
-                  <p className="text-lg font-bold text-blue-800">2.5 acres</p>
-                </div>
-                <div className="p-3 bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg border border-cyan-200">
-                  <p className="text-xs text-cyan-600 font-medium mb-1">Water Usage</p>
-                  <p className="text-lg font-bold text-cyan-800">0 L/min</p>
-                </div>
-              </div>
-
-              {/* Connect Device Button */}
-              <button
-                onClick={handleSprinklerToggle}
-                className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all transform hover:scale-[1.02] flex items-center justify-center space-x-2"
-              >
-                <Wifi className="h-5 w-5" />
-                <span>Connect IoT Device</span>
-              </button>
-            </div>
-          </div>
         </div>
 
         <div className="space-y-6">
           <WeatherWidget />
+        </div>
+      </div>
+
+      {/* Separate IoT Sprinkler Section */}
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+                <Droplets className="h-8 w-8" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold">IoT Sprinkler System</h2>
+                <p className="text-blue-100 text-sm mt-1">Smart Irrigation Control</p>
+              </div>
+            </div>
+            <button
+              onClick={handleConnectDevice}
+              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              title="Settings"
+            >
+              <Settings className="h-6 w-6" />
+            </button>
+          </div>
+        </div>
+
+        {/* Connection Alert */}
+        {showAlert && !isDeviceConnected && (
+          <div className="mx-6 mt-6 p-4 bg-orange-50 border-l-4 border-orange-500 rounded-lg animate-fade-in">
+            <div className="flex items-start justify-between">
+              <div className="flex items-start space-x-3">
+                <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-orange-900">No IoT Device Connected</h3>
+                  <p className="text-xs text-orange-700 mt-1">
+                    Please connect your IoT sprinkler device to enable remote watering control.
+                  </p>
+                  <button
+                    onClick={handleConnectDevice}
+                    className="mt-3 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-lg transition-colors"
+                  >
+                    Connect Device
+                  </button>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAlert(false)}
+                className="text-orange-600 hover:text-orange-800 text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Content */}
+        <div className="p-6 space-y-6">
+          {/* Device Status */}
+          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+            <div className="flex items-center space-x-3">
+              <div className={`p-2 rounded-lg ${isDeviceConnected ? 'bg-green-100' : 'bg-red-100'}`}>
+                <Activity className={`h-5 w-5 ${isDeviceConnected ? 'text-green-600' : 'text-red-600'}`} />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600">Device Status</p>
+                <p className={`text-lg font-bold ${isDeviceConnected ? 'text-green-600' : 'text-red-600'}`}>
+                  {isDeviceConnected ? 'Connected' : 'Not Connected'}
+                </p>
+              </div>
+            </div>
+            {!isDeviceConnected && (
+              <button
+                onClick={handleConnectDevice}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                Connect
+              </button>
+            )}
+          </div>
+
+          {/* Metrics Grid */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200">
+              <p className="text-xs text-blue-600 font-semibold mb-1">Coverage Area</p>
+              <p className="text-2xl font-bold text-blue-900">2.5</p>
+              <p className="text-xs text-blue-600">acres</p>
+            </div>
+            <div className="p-4 bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-xl border border-cyan-200">
+              <p className="text-xs text-cyan-600 font-semibold mb-1">Water Usage</p>
+              <p className="text-2xl font-bold text-cyan-900">0</p>
+              <p className="text-xs text-cyan-600">L/min</p>
+            </div>
+            <div className="p-4 bg-gradient-to-br from-teal-50 to-teal-100 rounded-xl border border-teal-200">
+              <p className="text-xs text-teal-600 font-semibold mb-1">Status</p>
+              <p className="text-2xl font-bold text-teal-900">OFF</p>
+              <p className="text-xs text-teal-600">Idle</p>
+            </div>
+          </div>
+
+          {/* Control Button */}
+          <button
+            onClick={handleStartWatering}
+            disabled={!isDeviceConnected}
+            className={`w-full py-4 px-6 rounded-xl font-bold text-lg shadow-lg transition-all transform ${isDeviceConnected
+                ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white hover:scale-[1.02] hover:shadow-xl'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+          >
+            <div className="flex items-center justify-center space-x-3">
+              <Droplets className="h-6 w-6" />
+              <span>Start Watering</span>
+            </div>
+          </button>
+
+          {/* Info Text */}
+          <p className="text-xs text-center text-gray-500">
+            {isDeviceConnected
+              ? 'Click the button above to start watering your field'
+              : 'Connect your IoT device to enable watering control'}
+          </p>
         </div>
       </div>
     </div>
