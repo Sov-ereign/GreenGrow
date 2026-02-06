@@ -69,7 +69,7 @@ const Market: React.FC = () => {
 
   const fetchNews = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/news");
+      const res = await fetch("https://greengrow-wufp.onrender.com/api/news");
       if (!res.ok) throw new Error("News API not found");
       const data = await res.json();
       setNews((prevNews) => [...prevNews, ...(data.news || [])]);
@@ -88,7 +88,7 @@ const Market: React.FC = () => {
     const fetchInitialPrices = async () => {
       setPricesLoading(true);
       try {
-        const res = await fetch("http://localhost:5000/api/mandi/prices");
+        const res = await fetch("https://greengrow-wufp.onrender.com/api/mandi/prices");
         if (!res.ok) throw new Error("Failed to fetch mandi prices");
         const data = await res.json();
         const recs = data.records || [];

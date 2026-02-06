@@ -24,7 +24,7 @@ const FarmForm = () => {
     try {
       // ✅ POST request to backend
       const res = await axios.post(
-        "http://localhost:5000/api/farm",
+        "https://greengrow-wufp.onrender.com/api/farm",
         formData,
         { withCredentials: true } // cookie-based auth
       );
@@ -38,7 +38,7 @@ const FarmForm = () => {
 
   const fetchSingleFarm = async (id: string) => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/farm/${id}`, {
+      const res = await axios.get(`https://greengrow-wufp.onrender.com/api/farm/${id}`, {
         withCredentials: true,
       });
       console.log("Fetched single farm:", res.data);

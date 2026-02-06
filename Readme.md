@@ -263,7 +263,7 @@ AXICOV_API_BASE=https://api.axicov.com/v1 (optional)
 
 **Client/.env:**
 ```env
-VITE_API_URL=http://localhost:5000/api
+VITE_API_URL=https://greengrow-wufp.onrender.com/api
 ```
 
 ### Running the Complete Application
