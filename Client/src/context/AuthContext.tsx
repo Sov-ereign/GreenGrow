@@ -67,7 +67,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const register = async (formData: any) => {
     try {
       const response = await axios.post(
-        `${API_BASE_URL}/api/auth/signup`,
+        `${API_BASE_URL}/api/auth/register`,
         formData,
         { withCredentials: true }
       );

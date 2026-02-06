@@ -135,7 +135,7 @@ export default function Navbar() {
                             <Link to="/login">Login</Link>
                         </Button>
                         <Button asChild size="sm" className="bg-agri-500 text-white">
-                            <Link to="/signup">Sign Up</Link>
+                            <Link to="/register">Sign Up</Link>
                         </Button>
                     </div>
 
