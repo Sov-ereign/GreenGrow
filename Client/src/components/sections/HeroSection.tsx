@@ -52,7 +52,7 @@ export default function HeroSection() {
 
         <div className="flex flex-wrap justify-center gap-4 animate-fade-in delay-200">
           <Button asChild size="lg" className="bg-agri-500 hover:bg-agri-600 text-white group text-lg py-6 px-8">
-            <Link to="/signup" className="flex items-center gap-2">
+            <Link to="/register" className="flex items-center gap-2">
               Get Started
               <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
             </Link>
