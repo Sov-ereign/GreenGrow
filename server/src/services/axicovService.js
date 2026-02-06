@@ -51,7 +51,7 @@ export async function chatWithAxicov(message, context = {}) {
   } catch (error) {
     console.error('Axicov chat error:', error.response?.data || error.message);
     
-    // Fallback to direct Gemini API if Axicov fails (for gradual migration)
+    // Fallback to direct LLM API if Axicov fails (for gradual migration)
     if (process.env.USE_AXICOV_FALLBACK !== 'false') {
       return {
         success: false,
@@ -65,7 +65,7 @@ export async function chatWithAxicov(message, context = {}) {
 }
 
 /**
- * Execute image analysis workflow (disease detection + Gemini vision)
+ * Execute image analysis workflow (disease detection + vision model)
  */
 export async function analyzeImageWithAxicov(imageData, imageMimeType, diseaseResult = null) {
   try {

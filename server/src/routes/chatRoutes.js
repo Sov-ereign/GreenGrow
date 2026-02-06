@@ -5,6 +5,11 @@ import FormData from "form-data";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import {
+  createChatCompletion,
+  getGroqModel,
+  getMessageText,
+} from "../services/groqClient.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,32 +39,23 @@ router.post("/message", async (req, res) => {
       return res.status(400).json({ error: "Message is required" });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: "Gemini API key not configured" });
-    }
+    const prompt =
+      "You are an AI farming advisor for GreenGrow. Help farmers with crop cultivation, " +
+      "weather, disease prevention, soil management, and agriculture best practices. " +
+      "Provide helpful, practical advice in a friendly and professional manner.";
 
-    // Use gemini-2.5-flash for text generation (latest stable model)
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
-    const prompt = `You are an AI farming advisor for GreenGrow. Help farmers with crop cultivation, weather, disease prevention, soil management, and agriculture best practices. 
-    
-User question: ${message}
-
-Provide helpful, practical advice in a friendly and professional manner.`;
-
-    const response = await axios.post(
-      API_URL,
-      {
-        contents: [{ parts: [{ text: prompt }] }],
-      },
-      {
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    const data = await createChatCompletion({
+      model: getGroqModel("llama-3.1-8b-instant"),
+      messages: [
+        { role: "system", content: prompt },
+        { role: "user", content: message },
+      ],
+      temperature: 0.4,
+      max_completion_tokens: 512,
+    });
 
     const aiText =
-      response.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      getMessageText(data) ||
       "I'm sorry, I couldn't process your question. Please try again.";
 
     res.json({ response: aiText });
@@ -67,7 +63,6 @@ Provide helpful, practical advice in a friendly and professional manner.`;
     console.error("Error in chat message:", err.response?.data || err.message);
     console.error("Full error:", err);
 
-    // More detailed error response
     const errorMessage = err.response?.data?.error?.message || err.message;
     const errorCode = err.response?.status || 500;
 
@@ -106,37 +101,17 @@ router.post("/image-analysis", upload.single("image"), async (req, res) => {
       diseaseResult = flaskResponse.data;
     } catch (flaskErr) {
       console.error("Flask API error:", flaskErr.message);
-      // Continue even if Flask fails - we'll still send image to Gemini
+      // Continue even if Flask fails - we'll still respond with general guidance
     }
 
-    // Step 2: Prepare context for Gemini
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      // Cleanup uploaded file
-      fs.unlinkSync(imagePath);
-      return res.status(500).json({ error: "Gemini API key not configured" });
-    }
-
-    // Read image as base64
-    const imageBuffer = fs.readFileSync(imagePath);
-    const imageBase64 = imageBuffer.toString("base64");
-    const imageMimeType = req.file.mimetype || "image/jpeg";
-
-    // Build prompt with disease detection results
+    // Step 2: Build prompt for Groq (text-only guidance)
     let prompt = `You are an AI farming advisor for GreenGrow. A farmer has uploaded a plant image for analysis.
-    
-Please analyze this image and provide:
-1. Identification of the plant/crop (if visible)
-2. Health assessment
-3. Disease/pest detection (if any)
-4. Specific treatment recommendations
-5. Preventive measures for the future
-6. Best practices for crop care
-
-`;
+Provide practical, step-by-step advice for crop care, disease prevention, and treatment.`;
 
     if (diseaseResult) {
-      prompt += `Our disease detection model identified:
+      prompt += `
+
+Our disease detection model identified:
 - Disease/Condition: ${
         diseaseResult.disease || diseaseResult.predicted_class || "Unknown"
       }
@@ -145,56 +120,41 @@ Please analyze this image and provide:
           ? `${diseaseResult.confidence.toFixed(1)}%`
           : "N/A"
       }
-- Status: ${diseaseResult.status || "Detected"}
-
-`;
+- Status: ${diseaseResult.status || "Detected"}`;
+    } else {
+      prompt +=
+        "\n\nNo automated disease detection result was available. Provide general diagnostic steps and safe recommendations.";
     }
 
-    prompt += `Please provide detailed, actionable advice based on the image analysis. Be specific and practical.`;
+    const messages = [
+      {
+        role: "system",
+        content:
+          "Respond in a friendly, practical tone. Keep it concise but actionable.",
+      },
+      { role: "user", content: prompt },
+    ];
 
-    // Step 3: Send to Gemini with image
+    let aiText = "I couldn't analyze the image. Please try again with a clearer photo.";
     try {
-      // Use gemini-2.5-flash for image analysis (supports vision)
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
-      const response = await axios.post(
-        geminiUrl,
-        {
-          contents: [
-            {
-              parts: [
-                { text: prompt },
-                {
-                  inline_data: {
-                    mime_type: imageMimeType,
-                    data: imageBase64,
-                  },
-                },
-              ],
-            },
-          ],
-        },
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-
-      const aiText =
-        response.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-        "I couldn't analyze the image. Please try again with a clearer photo.";
-
-      // Cleanup uploaded file
-      fs.unlinkSync(imagePath);
-
-      res.json({
-        response: aiText,
-        diseaseDetection: diseaseResult || null,
+      const data = await createChatCompletion({
+        model: getGroqModel("llama-3.1-8b-instant"),
+        messages,
+        temperature: 0.4,
+        max_completion_tokens: 512,
       });
-    } catch (geminiErr) {
-      // Cleanup uploaded file
-      fs.unlinkSync(imagePath);
-      throw geminiErr;
+      aiText = getMessageText(data) || aiText;
+    } catch (groqErr) {
+      console.error("Groq API error:", groqErr.response?.data || groqErr.message);
     }
+
+    // Cleanup uploaded file
+    fs.unlinkSync(imagePath);
+
+    res.json({
+      response: aiText,
+      diseaseDetection: diseaseResult || null,
+    });
   } catch (err) {
     console.error(
       "Error in image analysis:",
@@ -225,19 +185,43 @@ router.post("/voice-command", async (req, res) => {
       });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.error("GEMINI_API_KEY is not set in environment variables");
-      return res.status(500).json({
-        error: "Gemini API key not configured",
-        response:
-          "I'm sorry, the voice assistant is not properly configured. Please contact support.",
-        command: { action: "info", data: {} },
-      });
-    }
-
-    // Use gemini-2.5-flash for command interpretation
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const responseFormat = {
+      type: "json_schema",
+      json_schema: {
+        name: "voice_command",
+        strict: false,
+        schema: {
+          type: "object",
+          properties: {
+            response: { type: "string" },
+            command: {
+              type: "object",
+              properties: {
+                action: {
+                  type: "string",
+                  enum: [
+                    "navigate",
+                    "search",
+                    "weather",
+                    "market",
+                    "crops",
+                    "chat",
+                    "home",
+                    "help",
+                    "info",
+                  ],
+                },
+                target: { type: "string" },
+                query: { type: "string" },
+                data: { type: "object" },
+              },
+              required: ["action"],
+            },
+          },
+          required: ["response", "command"],
+        },
+      },
+    };
 
     const prompt = `You are Arav, a voice assistant for GreenGrow, a farming website. The user has given you a voice command. 
 
@@ -260,62 +244,60 @@ Respond with ONLY valid JSON in this exact format (no markdown, no code blocks, 
 }
 
 Examples:
-- User: "Go to weather page" → {"response": "Opening weather page", "command": {"action": "navigate", "target": "/weather"}}
-- User: "Show me market prices" → {"response": "Opening market prices", "command": {"action": "navigate", "target": "/market"}}
-- User: "What's the weather like?" → {"response": "Let me show you the weather", "command": {"action": "navigate", "target": "/weather"}}
-- User: "Tell me about tomatoes" → {"response": "Let me find information about tomatoes", "command": {"action": "search", "query": "tomatoes"}}
-- User: "Open chat" → {"response": "Opening chat", "command": {"action": "navigate", "target": "/chat"}}
-- User: "Take me home" → {"response": "Going to homepage", "command": {"action": "navigate", "target": "/"}}
-- User: "Help me" → {"response": "Opening help page", "command": {"action": "navigate", "target": "/help"}}
+- User: "Go to weather page" -> {"response": "Opening weather page", "command": {"action": "navigate", "target": "/weather"}}
+- User: "Show me market prices" -> {"response": "Opening market prices", "command": {"action": "navigate", "target": "/market"}}
+- User: "What's the weather like?" -> {"response": "Let me show you the weather", "command": {"action": "navigate", "target": "/weather"}}
+- User: "Tell me about tomatoes" -> {"response": "Let me find information about tomatoes", "command": {"action": "search", "query": "tomatoes"}}
+- User: "Open chat" -> {"response": "Opening chat", "command": {"action": "navigate", "target": "/chat"}}
+- User: "Take me home" -> {"response": "Going to homepage", "command": {"action": "navigate", "target": "/"}}
+- User: "Help me" -> {"response": "Opening help page", "command": {"action": "navigate", "target": "/help"}}
 
 Be conversational and helpful. The response should be what Arav will say to the user.`;
 
-    let geminiResponse;
+    let groqResponse;
     try {
-      geminiResponse = await axios.post(
-        API_URL,
-        {
-          contents: [{ parts: [{ text: prompt }] }],
-        },
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      groqResponse = await createChatCompletion({
+        model: getGroqModel("llama-3.1-8b-instant"),
+        messages: [
+          { role: "system", content: "Return only valid JSON." },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0,
+        max_completion_tokens: 300,
+        response_format: responseFormat,
+      });
     } catch (apiErr) {
-      console.error("Gemini API error:", {
+      console.error("Groq API error:", {
         status: apiErr.response?.status,
         statusText: apiErr.response?.statusText,
         data: apiErr.response?.data,
         message: apiErr.message,
       });
       throw new Error(
-        `Gemini API error: ${
+        `Groq API error: ${
           apiErr.response?.data?.error?.message || apiErr.message
         }`
       );
     }
 
-    if (!geminiResponse || !geminiResponse.data) {
-      throw new Error("Invalid response from Gemini API");
+    if (!groqResponse || !groqResponse.data) {
+      throw new Error("Invalid response from Groq API");
     }
 
     const aiText =
-      geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "I understand your request.";
+      getMessageText(groqResponse) || "I understand your request.";
 
-    // Parse the JSON response from Gemini
+    // Parse the JSON response from Groq
     let parsedResponse;
     try {
-      // Remove any markdown code blocks if present
       const cleanedText = aiText
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
+        .replace(/```json\s*/g, "")
+        .replace(/```\s*/g, "")
         .trim();
       parsedResponse = JSON.parse(cleanedText);
     } catch (parseErr) {
-      console.error("Failed to parse Gemini response as JSON:", aiText);
+      console.error("Failed to parse Groq response as JSON:", aiText);
       console.error("Parse error:", parseErr.message);
-      // Fallback: try to extract basic navigation
       const lowerCommand = command.toLowerCase();
       let action = "info";
       let target = null;
@@ -398,33 +380,21 @@ router.post("/live-voice", async (req, res) => {
       });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.error("GEMINI_API_KEY is not set in environment variables");
-      return res.status(500).json({
-        error: "Gemini API key not configured",
-        response: "I'm sorry, the voice assistant is not properly configured.",
-      });
-    }
-
     // Fetch current website data for context
     let weatherData = null;
     let marketData = null;
     let newsData = null;
 
     try {
-      // Try to get user's location from request (if available)
       const userLocation = req.headers["x-user-location"] || null;
 
-      // Fetch weather data (try to get API key from env or use provided one)
       const weatherApiKey =
         process.env.WEATHER_API_KEY ||
         process.env.VITE_WEATHER_API_KEY ||
         req.body.weatherApiKey;
       if (weatherApiKey) {
         try {
-          // Default to a common location or use provided location
-          const lat = userLocation ? JSON.parse(userLocation).lat : 28.6139; // Delhi default
+          const lat = userLocation ? JSON.parse(userLocation).lat : 28.6139;
           const lon = userLocation ? JSON.parse(userLocation).lon : 77.209;
 
           const weatherRes = await axios.get(
@@ -440,7 +410,6 @@ router.post("/live-voice", async (req, res) => {
         );
       }
 
-      // Fetch market data using internal API
       try {
         const baseUrl = req.protocol + "://" + req.get("host");
         const marketRes = await axios.get(`${baseUrl}/api/mandi/prices`);
@@ -450,7 +419,6 @@ router.post("/live-voice", async (req, res) => {
         }
       } catch (marketErr) {
         console.warn("Market data fetch failed:", marketErr.message);
-        // Use fallback data
         marketData = [
           {
             commodity: "Wheat",
@@ -487,7 +455,6 @@ router.post("/live-voice", async (req, res) => {
         ];
       }
 
-      // Fetch news data
       try {
         const newsRes = await axios.get(
           `https://newsapi.org/v2/everything?q=agriculture+farming&sortBy=publishedAt&apiKey=${process.env.NEWS_API_KEY}&pageSize=5`
@@ -506,46 +473,61 @@ router.post("/live-voice", async (req, res) => {
       console.warn("Error fetching context data:", dataErr.message);
     }
 
-    // Build context for Gemini
-    let contextInfo = `You are Arav, an intelligent voice assistant for GreenGrow, a farming website. You're having a LIVE CONVERSATION with a farmer. Be conversational, friendly, and helpful. You have access to real-time data:\n\n`;
+    // Build context for Groq
+    let contextInfo = `You are Arav, an intelligent voice assistant for GreenGrow, a farming website. You're having a LIVE CONVERSATION with a farmer. Be conversational, friendly, and helpful. You have access to real-time data:
+
+`;
 
     if (weatherData) {
-      contextInfo += `CURRENT WEATHER DATA:\n`;
-      contextInfo += `- Location: ${weatherData.name || "Unknown"}\n`;
-      contextInfo += `- Temperature: ${weatherData.main?.temp || "N/A"}°C\n`;
+      contextInfo += `CURRENT WEATHER DATA:
+`;
+      contextInfo += `- Location: ${weatherData.name || "Unknown"}
+`;
+      contextInfo += `- Temperature: ${weatherData.main?.temp || "N/A"} C
+`;
       contextInfo += `- Condition: ${
         weatherData.weather?.[0]?.description || "N/A"
-      }\n`;
-      contextInfo += `- Humidity: ${weatherData.main?.humidity || "N/A"}%\n`;
+      }
+`;
+      contextInfo += `- Humidity: ${weatherData.main?.humidity || "N/A"}%
+`;
       contextInfo += `- Wind Speed: ${
         weatherData.wind?.speed || "N/A"
-      } m/s\n\n`;
+      } m/s
+
+`;
     }
 
     if (marketData && marketData.length > 0) {
-      contextInfo += `CURRENT MARKET PRICES (sample):\n`;
+      contextInfo += `CURRENT MARKET PRICES (sample):
+`;
       marketData.slice(0, 10).forEach((item) => {
-        contextInfo += `- ${item.commodity}: ₹${item.modal_price}/quintal (${item.market}, ${item.state})\n`;
+        contextInfo += `- ${item.commodity}: INR ${item.modal_price}/quintal (${item.market}, ${item.state})
+`;
       });
-      contextInfo += `\n`;
+      contextInfo += `
+`;
     }
 
     if (newsData && newsData.length > 0) {
-      contextInfo += `RECENT AGRICULTURE NEWS:\n`;
+      contextInfo += `RECENT AGRICULTURE NEWS:
+`;
       newsData.forEach((item) => {
-        contextInfo += `- ${item.title}\n`;
+        contextInfo += `- ${item.title}
+`;
       });
-      contextInfo += `\n`;
+      contextInfo += `
+`;
     }
 
-    // Build conversation history
     let conversationContext = "";
     if (conversationHistory.length > 0) {
       conversationContext = "Previous conversation:\n";
       conversationHistory.slice(-6).forEach((msg) => {
         conversationContext += `${msg.role === "user" ? "User" : "Arav"}: ${
           msg.content
-        }\n`;
+        }
+`;
       });
       conversationContext += "\n";
     }
@@ -560,38 +542,36 @@ Respond naturally as if you're talking to them. You can:
 
 Keep your response concise (2-3 sentences max) since this is a voice conversation. Speak naturally as Arav.`;
 
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
-    let geminiResponse;
+    let groqResponse;
     try {
-      geminiResponse = await axios.post(
-        API_URL,
-        {
-          contents: [{ parts: [{ text: prompt }] }],
-        },
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      groqResponse = await createChatCompletion({
+        model: getGroqModel("llama-3.1-8b-instant"),
+        messages: [
+          { role: "system", content: "You are a helpful voice assistant." },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.4,
+        max_completion_tokens: 300,
+      });
     } catch (apiErr) {
-      console.error("Gemini API error:", {
+      console.error("Groq API error:", {
         status: apiErr.response?.status,
         data: apiErr.response?.data,
         message: apiErr.message,
       });
       throw new Error(
-        `Gemini API error: ${
+        `Groq API error: ${
           apiErr.response?.data?.error?.message || apiErr.message
         }`
       );
     }
 
-    if (!geminiResponse || !geminiResponse.data) {
-      throw new Error("Invalid response from Gemini API");
+    if (!groqResponse || !groqResponse.data) {
+      throw new Error("Invalid response from Groq API");
     }
 
     const aiText =
-      geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      getMessageText(groqResponse) ||
       "I understand. How can I help you further?";
 
     res.json({
