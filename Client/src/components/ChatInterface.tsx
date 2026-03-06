@@ -174,19 +174,21 @@ const speechLanguageCodes: Record<string, string> = {
   mr: 'mr-IN',
 };
 
-// ElevenLabs voice IDs for different languages
-const elevenLabsVoices: Record<string, string> = {
-  en: '9BWtsMINqrJLrRacOk9x', // Aria
-  hi: 'pNInz6obpgDQGcFmaJgB', // Adam (multilingual)
-  bn: 'EXAVITQu4vr4xnSDxMaL', // Sarah (multilingual)
+// ElevenLabs voice pools per language (ordered fallbacks)
+// Use only confirmed public voices to avoid 404s when a voice ID is missing from the account.
+const elevenLabsVoicePool: Record<string, string[]> = {
+  en: ['21m00Tcm4TlvDq8ikWAM', 'EXAVITQu4vr4xnSDxMaL'], // Rachel, Bella
+  hi: ['pNInz6obpgDQGcFmaJgB', '21m00Tcm4TlvDq8ikWAM'], // Adam (multilingual), Rachel
+  bn: ['21m00Tcm4TlvDq8ikWAM', 'pNInz6obpgDQGcFmaJgB'], // Rachel, Adam
 };
 const ELEVENLABS_DISABLED_KEY = 'greengrow_elevenlabs_disabled';
+const elevenLabsVoiceCache: { list?: string[] } = {};
 
-const getInitialElevenLabsEnabled = () => {
-  if (!ELEVENLABS_API_KEY) return false;
-  if (typeof window === 'undefined') return false;
-  return window.localStorage.getItem(ELEVENLABS_DISABLED_KEY) !== '1';
-};
+  const getInitialElevenLabsEnabled = () => {
+    if (!ELEVENLABS_API_KEY) return false;
+    if (typeof window === 'undefined') return false;
+    return true;
+  };
 
 interface ChatInterfaceProps {
   initialSessionId?: string | null;
@@ -217,6 +219,7 @@ export default function AgriSmartAssistant({
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [useElevenLabs, setUseElevenLabs] = useState(getInitialElevenLabsEnabled);
   const [showSettings, setShowSettings] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const skipNextAutoScrollRef = useRef(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -291,6 +294,43 @@ export default function AgriSmartAssistant({
     ]);
   }, [language, activeSessionId]);
 
+  // Helper to translate the current messages to the selected language for display
+  const translateMessagesForLanguage = async (msgs: Message[], targetLanguage: string) => {
+    if (!msgs.length) return;
+    setIsTranslating(true);
+    try {
+      const res = await fetch(apiUrl('/api/chat/translate'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: msgs, language: targetLanguage }),
+      });
+      if (!res.ok) throw new Error('Failed to translate chat');
+      const data = await res.json();
+      const translated: Message[] = (data.messages || []).map((m: any) => {
+        const rawText = m?.text;
+        const text =
+          typeof rawText === 'string'
+            ? rawText
+            : rawText && typeof rawText === 'object' && 'text' in rawText
+              ? String((rawText as any).text ?? '')
+              : String(rawText ?? '');
+        return {
+          ...m,
+          text,
+          timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
+        };
+      });
+      if (translated.length) {
+        setMessages(translated);
+      }
+    } catch (err) {
+      console.warn('Translation skipped:', err);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
   // Load session messages when a session is selected
   useEffect(() => {
     const loadSession = async (sessionId: string) => {
@@ -313,14 +353,18 @@ export default function AgriSmartAssistant({
           imagePreviewUrl: msg.imageUrl || null,
         }));
         skipNextAutoScrollRef.current = true;
-        setMessages(loadedMessages.length ? loadedMessages : [
+        const baseMessages = loadedMessages.length ? loadedMessages : [
           {
             id: '1',
             text: welcomeMessages[language] || welcomeMessages['en'],
             sender: 'assistant',
             timestamp: new Date(),
           },
-        ]);
+        ];
+        setMessages(baseMessages);
+        if (language && baseMessages.length && language !== 'en') {
+          translateMessagesForLanguage(baseMessages, language);
+        }
         setActiveSessionId(sessionId);
       } catch (error) {
         console.error('Failed to load session:', error);
@@ -342,6 +386,12 @@ export default function AgriSmartAssistant({
       ]);
     }
   }, [initialSessionId, language]);
+
+  // When language changes, translate currently visible messages to keep the view consistent
+  useEffect(() => {
+    if (!messages.length) return;
+    translateMessagesForLanguage(messages, language);
+  }, [language]);
 
   // Scroll to bottom whenever messages change
   useEffect(() => {
@@ -365,57 +415,140 @@ export default function AgriSmartAssistant({
 
   // Function to speak text using ElevenLabs API
   const speakWithElevenLabs = async (text: string) => {
+    // If user disabled ElevenLabs, skip.
+    if (!useElevenLabs) {
+      speakWithBrowserTTS(text);
+      return;
+    }
     if (!ELEVENLABS_API_KEY) {
       console.error('ElevenLabs API key not provided');
+      speakWithBrowserTTS(text);
       return;
     }
 
-    try {
-      setIsSpeaking(true);
-      const voiceId = elevenLabsVoices[language] || elevenLabsVoices['en'];
-
-      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'audio/mpeg',
-          'Content-Type': 'application/json',
-          'xi-api-key': ELEVENLABS_API_KEY,
-        },
-        body: JSON.stringify({
-          text: text,
-          model_id: 'eleven_multilingual_v2',
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.5,
+    const playVoice = async (voiceId: string) => {
+      const endpoints = [`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`];
+      for (const url of endpoints) {
+        const response = await fetch(url, {
+          method: 'POST',
+          mode: 'cors',
+          headers: {
+            'Accept': 'audio/mpeg',
+            'Content-Type': 'application/json',
+            'xi-api-key': ELEVENLABS_API_KEY,
           },
-        }),
-      });
+          body: JSON.stringify({
+            text: text,
+            model_id: 'eleven_multilingual_v2',
+            voice_settings: { stability: 0.5, similarity_boost: 0.5 },
+          }),
+        });
 
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          if (typeof window !== 'undefined') {
-            window.localStorage.setItem(ELEVENLABS_DISABLED_KEY, '1');
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            setIsSpeaking(false);
+            console.warn('ElevenLabs auth/quota issue (401/403). Check VITE_ELEVENLABS_API_KEY.');
+            speakWithBrowserTTS(text);
+            return true; // stop further attempts
           }
-          setUseElevenLabs(false);
+          // try next endpoint or voice
+          continue;
         }
-        throw new Error(`ElevenLabs API error: ${response.status}`);
+
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+
+        audio.onended = () => {
+          setIsSpeaking(false);
+          URL.revokeObjectURL(audioUrl);
+        };
+
+        audio.onerror = () => {
+          setIsSpeaking(false);
+          URL.revokeObjectURL(audioUrl);
+        };
+
+        await audio.play();
+        return true;
+      }
+      return false;
+    };
+
+    try {
+      const voices = elevenLabsVoicePool[language] || elevenLabsVoicePool['en'] || [];
+      const dynamicVoices = elevenLabsVoiceCache.list || [];
+      const voiceCandidates = [...voices, ...dynamicVoices];
+      let played = false;
+      for (const voiceId of voiceCandidates) {
+        try {
+          setIsSpeaking(true);
+          const ok = await playVoice(voiceId);
+          if (ok) {
+            played = true;
+            break;
+          }
+        } catch (innerErr) {
+          console.warn('ElevenLabs voice failed, trying next:', innerErr);
+          setIsSpeaking(false);
+        }
       }
 
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
+      // If still not played and no dynamic voices tried, fetch voice list and retry once
+      if (!played && !dynamicVoices.length) {
+        try {
+              const res = await fetch('https://api.elevenlabs.io/v1/voices', {
+                headers: {
+                  'xi-api-key': ELEVENLABS_API_KEY,
+                },
+              });
+          if (res.ok) {
+            const data = await res.json();
+            const ids = (data?.voices || []).map((v: any) => v.voice_id).filter(Boolean);
+            elevenLabsVoiceCache.list = ids;
+            if (ids.length) {
+              const retryVoices = ids.slice(0, 3); // try first few
+              for (const vid of retryVoices) {
+                try {
+                  setIsSpeaking(true);
+                  const r2 = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${vid}/stream`, {
+                    method: 'POST',
+                    headers: {
+                      'Accept': 'audio/mpeg',
+                      'Content-Type': 'application/json',
+                      'xi-api-key': ELEVENLABS_API_KEY,
+                    },
+                    body: JSON.stringify({
+                      text,
+                      model_id: 'eleven_multilingual_v2',
+                      voice_settings: { stability: 0.5, similarity_boost: 0.5 },
+                    }),
+                  });
+                  if (!r2.ok) continue;
+                  const blob = await r2.blob();
+                  const url = URL.createObjectURL(blob);
+                  const audio = new Audio(url);
+                  audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(url); };
+                  audio.onerror = () => { setIsSpeaking(false); URL.revokeObjectURL(url); };
+                  await audio.play();
+                  played = true;
+                  break;
+                } catch (inner) {
+                  console.warn('Dynamic ElevenLabs voice failed', inner);
+                  setIsSpeaking(false);
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to fetch ElevenLabs voices', err);
+        }
+      }
 
-      audio.onended = () => {
+      if (!played) {
         setIsSpeaking(false);
-        URL.revokeObjectURL(audioUrl);
-      };
-
-      audio.onerror = () => {
-        setIsSpeaking(false);
-        URL.revokeObjectURL(audioUrl);
-      };
-
-      await audio.play();
+        speakWithBrowserTTS(text);
+      }
     } catch (error) {
       console.error('ElevenLabs TTS error:', error);
       setIsSpeaking(false);
@@ -1087,10 +1220,6 @@ User query: ${input}`;
                 checked={useElevenLabs}
                 onChange={(e) => {
                   const enabled = e.target.checked;
-                  if (typeof window !== "undefined") {
-                    if (enabled) window.localStorage.removeItem(ELEVENLABS_DISABLED_KEY);
-                    else window.localStorage.setItem(ELEVENLABS_DISABLED_KEY, "1");
-                  }
                   setUseElevenLabs(enabled);
                 }}
                 className="rounded border-gray-300 text-green-500 focus:ring-green-400"

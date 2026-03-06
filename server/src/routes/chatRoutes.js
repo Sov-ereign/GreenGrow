@@ -197,12 +197,109 @@ const translateList = async (items = [], languageName = "English") => {
   return items;
 };
 
+const translateText = async (text = "", languageName = "English") => {
+  if (!text || languageName.toLowerCase() === "english") return text;
+  try {
+    const data = await createChatCompletion({
+      model: getGroqModel("llama-3.1-8b-instant"),
+      messages: [
+        {
+          role: "system",
+          content: `You are a translator. Translate the following text fully into ${languageName}. Preserve markdown and bullets. Respond ONLY with the translated text. If already in ${languageName}, return it unchanged.`,
+        },
+        { role: "user", content: text },
+      ],
+      temperature: 0.1,
+      max_completion_tokens: 800,
+    });
+    return getMessageText(data) || text;
+  } catch (err) {
+    console.warn("Translation text fallback failed:", err.message);
+    return text;
+  }
+};
+
 // Test route to verify chat routes are loaded
 router.get("/test", (req, res) => {
   res.json({
     message: "Chat routes are working!",
     timestamp: new Date().toISOString(),
   });
+});
+
+// Translate an entire message list to the selected language (for UI localization of history)
+router.post("/translate", async (req, res) => {
+  try {
+    const { messages = [], language = "en" } = req.body || {};
+    const languageName = resolveLanguageName(language);
+
+    if (!messages?.length || !languageName) {
+      return res.json({ messages: [] });
+    }
+
+    // If already English, return unchanged
+    if (languageName.toLowerCase() === "english") {
+      return res.json({ messages });
+    }
+
+    const textList = messages.map((m) => String(m.text || ""));
+
+    try {
+      const data = await createChatCompletion({
+        model: getGroqModel("llama-3.1-8b-instant"),
+        messages: [
+          {
+            role: "system",
+            content: `Translate each chat message into ${languageName}. Preserve markdown, bullet points, and line breaks. Return ONLY a JSON array of translated strings in the same order.`,
+          },
+          { role: "user", content: JSON.stringify(textList) },
+        ],
+        temperature: 0.2,
+        max_completion_tokens: 1200,
+      });
+
+      let translated = [];
+      try {
+        translated = JSON.parse(getMessageText(data) || "[]");
+      } catch (parseErr) {
+        translated = [];
+      }
+
+      // Normalize to strings and keep order
+      const normalized = (Array.isArray(translated) && translated.length ? translated : textList).map(
+        (entry) => {
+          if (typeof entry === "string") return entry;
+          if (entry && typeof entry === "object") {
+            if (typeof entry.text === "string") return entry.text;
+            try {
+              return JSON.stringify(entry);
+            } catch {
+              return String(entry);
+            }
+          }
+          return String(entry ?? "");
+        }
+      );
+
+      const merged = messages.map((msg, idx) => ({
+        ...msg,
+        text: normalized[idx] || msg.text || "",
+      }));
+
+      return res.json({ messages: merged });
+    } catch (err) {
+      // As a fallback, translate each message individually
+      const fallback = [];
+      for (const msg of messages) {
+        const translatedText = await translateText(msg.text || "", languageName);
+        fallback.push({ ...msg, text: translatedText });
+      }
+      return res.json({ messages: fallback });
+    }
+  } catch (error) {
+    console.error("History translation failed:", error.message);
+    res.status(500).json({ error: "Failed to translate messages" });
+  }
 });
 
 // Helper: map disease + confidence to severity/risk
@@ -737,7 +834,7 @@ router.post("/message", protect, async (req, res) => {
       `You are an AI farming advisor for GreenGrow. Help farmers with crop cultivation, ` +
       `weather, disease prevention, soil management, and agriculture best practices. ` +
       `Provide helpful, practical advice in a friendly and professional manner. ` +
-      `Always respond fully in ${languageName}, using simple, farmer-friendly language.`;
+      `Always respond ONLY in ${languageName} (no English), using simple, farmer-friendly language.`;
 
     const data = await createChatCompletion({
       model: getGroqModel("llama-3.1-8b-instant"),
@@ -753,10 +850,13 @@ router.post("/message", protect, async (req, res) => {
       getMessageText(data) ||
       "I'm sorry, I couldn't process your question. Please try again.";
 
+    // Ensure response is in requested language (translation safety)
+    const localizedText = await translateText(aiText, languageName);
+
     if (!session.title) {
       session.title = await generateSessionTitle({
         userText: message.trim(),
-        assistantText: aiText,
+        assistantText: localizedText,
         language: languageName,
       });
       await session.save();
@@ -765,11 +865,11 @@ router.post("/message", protect, async (req, res) => {
     await ChatMessage.create({
       session: session._id,
       sender: "assistant",
-      message: aiText,
+      message: localizedText,
     });
 
     res.json({
-      response: aiText,
+      response: localizedText,
       plantId: plant ? plant._id : null,
       sessionId: session._id,
     });
@@ -1083,6 +1183,9 @@ Always reply in ${languageName}. Keep it concise but actionable.`,
     const finalCareActions =
       generatedCareActions.length > 0 ? generatedCareActions : fallbackCareActions;
 
+    // Safety translation for aiText when not English and Groq didn't comply
+    const localizedAiText = await translateText(aiText, languageName);
+
     // Build structured chat message for consistent UI rendering
     const diseaseName =
       diseaseResult?.disease ||
@@ -1092,7 +1195,7 @@ Always reply in ${languageName}. Keep it concise but actionable.`,
 
     const chatMessageText = `**Disease:** ${diseaseName}
 
-**Description:** ${aiText}
+**Description:** ${localizedAiText}
 
 **Recommended actions:**
 ${(finalCareActions && finalCareActions.length
@@ -1185,7 +1288,7 @@ ${(finalCareActions && finalCareActions.length
     });
 
     const diseaseDetectionPayload = diseaseResult
-      ? { ...diseaseResult, description: aiText }
+      ? { ...diseaseResult, description: localizedAiText }
       : null;
 
     res.json({
