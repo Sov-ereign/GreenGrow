@@ -120,10 +120,6 @@ const Home: React.FC = () => {
               <Plus className="w-5 h-5" />
               New plot
             </button>
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/15 border border-white/20 text-sm">
-              <Sparkles className="h-4 w-4" />
-              Demo-ready UI
-            </div>
           </div>
         </div>
       </div>

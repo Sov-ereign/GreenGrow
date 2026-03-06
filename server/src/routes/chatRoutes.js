@@ -5,6 +5,7 @@ import FormData from "form-data";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import mongoose from "mongoose";
 import { fileURLToPath } from "url";
 import {
   createChatCompletion,
@@ -474,10 +475,15 @@ router.get("/sessions", protect, async (req, res) => {
 // Get messages for a specific chat session
 router.get("/sessions/:id", protect, async (req, res) => {
   try {
-    const session = await ChatSession.findOne({
-      _id: req.params.id,
-      user: req.user._id,
-    }).lean();
+    const { id } = req.params;
+    const criteria = [
+      { sessionId: id, user: req.user._id },
+    ];
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      criteria.push({ _id: id, user: req.user._id });
+    }
+
+    const session = await ChatSession.findOne({ $or: criteria }).lean();
 
     if (!session) {
       return res.status(404).json({ error: "Chat session not found" });
@@ -748,27 +754,38 @@ router.post(
 
     const { prompt: userPrompt, language, plantId, sessionId } = req.body;
 
-    // Step 1: Send image to Flask backend for disease detection
-    const flaskUrl = process.env.FLASK_API_URL || "http://localhost:5001";
+    // Step 1: Send image to disease detection backend (same as DiseasePrediction.tsx)
     const imagePath = req.file.path;
+    const diseaseApiBase =
+      process.env.DISEASE_API_URL || "https://render-begins-musharraf.onrender.com";
 
     let diseaseResult = null;
     try {
       const formData = new FormData();
-      formData.append(
-        "file",
-        fs.createReadStream(imagePath),
-        req.file.originalname
-      );
+      formData.append("image", fs.createReadStream(imagePath), req.file.originalname);
 
-      const flaskResponse = await axios.post(`${flaskUrl}/predict`, formData, {
+      const diseaseResponse = await axios.post(`${diseaseApiBase}/predict`, formData, {
         headers: formData.getHeaders(),
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
       });
 
-      diseaseResult = flaskResponse.data;
-    } catch (flaskErr) {
-      console.error("Flask API error:", flaskErr.message);
-      // Continue even if Flask fails - we'll still respond with general guidance
+      // Normalize response shape to what downstream logic expects
+      const body = diseaseResponse.data || {};
+      diseaseResult = {
+        disease: body.prediction || body.disease || body.predicted_class || "",
+        predicted_class: body.predicted_class || body.prediction || body.disease || "",
+        confidence: typeof body.confidence === "number" ? body.confidence : undefined,
+        is_healthy:
+          typeof body.is_healthy === "boolean"
+            ? body.is_healthy
+            : String(body.prediction || body.disease || body.predicted_class || "")
+                .toLowerCase()
+                .includes("healthy"),
+      };
+    } catch (diseaseErr) {
+      console.error("Disease API error:", diseaseErr.message);
+      // Continue even if detection fails - we'll still respond with general guidance
     }
 
     // Step 2: Build prompt for Groq (text-only guidance)
@@ -779,23 +796,17 @@ router.post(
 Your job is to analyse the plant condition and provide clear, practical guidance.
 Always answer in simple, farmer-friendly language.
 
-STRICT RESPONSE FORMAT (Markdown):
-
-**Detected issue:** <very short name of the most likely problem, including crop if obvious>
-
-**Description:** <2–4 sentences that explain what this problem is, why it happens, and what parts of the plant are affected.>
-
-**Recommended treatment:**
-- <bullet point 1 with a concrete action>
-- <bullet point 2 with a concrete action>
-- <bullet point 3 with a concrete action>
-
-**Monitoring and follow-up:**
-- <how the farmer can watch the plant over the next few days>
-- <what signals mean it is getting better or worse>
-- <when they should contact an expert or extension worker if available>
-
-Do NOT include any other sections or headings. Keep the answer focused, practical, and easy to follow.`;
+STRICT RESPONSE FORMAT (JSON):
+Return a valid JSON object exactly like this:
+{
+  "chatMessage": "A friendly 3-4 sentence message explaining the detected issue, what it is, and what to watch out for. Use markdown formatting.",
+  "careActions": [
+    "Short actionable step 1 (one sentence).",
+    "Short actionable step 2 (one sentence).",
+    "Short actionable step 3 (one sentence)."
+  ]
+}
+Do NOT wrap the JSON in markdown code blocks. Just output raw JSON.`;
 
     if (diseaseResult) {
       const rawClass =
@@ -843,8 +854,8 @@ Our disease detection model identified a likely problem:
         }
 - Status: disease suspected
 
-When you write **Detected issue**, use a clean, human-friendly name without underscores,
-for example: "Tomato yellow leaf curl virus" instead of "Tomato___Tomato_Yellow_Leaf_Curl_Virus".`;
+When you generate the JSON:
+- In "chatMessage", use the human-friendly name without underscores.`;
       }
     } else {
       prompt +=
@@ -886,6 +897,22 @@ Always reply in ${languageName}. Keep it concise but actionable.`,
       aiText = getMessageText(data) || aiText;
     } catch (groqErr) {
       console.error("Groq API error:", groqErr.response?.data || groqErr.message);
+    }
+
+    // Extract structured care actions if Groq returned JSON
+    let generatedCareActions = [];
+    try {
+      const parsed = JSON.parse(aiText);
+      if (parsed && typeof parsed === "object") {
+        if (parsed.chatMessage) {
+          aiText = parsed.chatMessage;
+        }
+        if (Array.isArray(parsed.careActions)) {
+          generatedCareActions = parsed.careActions.filter(Boolean);
+        }
+      }
+    } catch {
+      // aiText was plain text; keep as-is
     }
 
     // Step 3: Persist plant, image, assessment, and chat
@@ -989,6 +1016,9 @@ Always reply in ${languageName}. Keep it concise but actionable.`,
       conditionTrend,
     });
 
+    // Use generated care actions if available, fallback to computed ones
+    const finalCareActions = generatedCareActions.length > 0 ? generatedCareActions : followUpPlan.careActions;
+
     const assessment = await PlantAssessment.create({
       plant: plant._id,
       image: plantImage._id,
@@ -997,7 +1027,7 @@ Always reply in ${languageName}. Keep it concise but actionable.`,
       confidenceScore: numericConfidence,
       severity,
       recommendations: [aiText],
-      careActions: followUpPlan.careActions,
+      careActions: finalCareActions,
       followUpQuestions: followUpPlan.followUpQuestions,
       monitoringReason: followUpPlan.monitoringReason,
       nextCheckDate: followUpPlan.nextCheckDate,

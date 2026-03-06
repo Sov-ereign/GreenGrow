@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import AgriSmartAssistant from "../components/ChatInterface";
 import { apiUrl } from "@/lib/env";
 import {
@@ -159,12 +159,22 @@ const SessionItem: React.FC<SessionItemProps> = ({
 // ---------------------------------------------------------------------------
 const Chat: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { sessionKey } = useParams();
 
   const [sessions, setSessions] = useState<any[]>([]);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(sessionKey || null);
   const [initialPlantId, setInitialPlantId] = useState<string | null>(null);
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [openMenuSessionId, setOpenMenuSessionId] = useState<string | null>(null);
+
+  const buildChatUrl = useCallback(
+    (sessionId: string | null) => {
+      const suffix = initialPlantId ? `?plantId=${initialPlantId}` : "";
+      return sessionId ? `/chat/${sessionId}${suffix}` : `/chat${suffix}`;
+    },
+    [initialPlantId]
+  );
 
   const loadSessions = useCallback(async () => {
     setLoadingSessions(true);
@@ -192,6 +202,11 @@ const Chat: React.FC = () => {
     loadSessions();
   }, [loadSessions, searchParams]);
 
+  // Sync active session with route param
+  useEffect(() => {
+    setActiveSessionId(sessionKey ?? null);
+  }, [sessionKey]);
+
   // Close menu on outside click
   useEffect(() => {
     const handler = (event: MouseEvent) => {
@@ -206,20 +221,23 @@ const Chat: React.FC = () => {
 
   const handleSelectSession = (session: any) => {
     setActiveSessionId(session.id);
+    navigate(buildChatUrl(session.id));
     setOpenMenuSessionId(null);
   };
 
   const handleNewChat = () => {
     setActiveSessionId(null);
+    navigate(buildChatUrl(null));
     setOpenMenuSessionId(null);
   };
 
   const handleSessionChange = useCallback(
     (sessionId: string | null) => {
       setActiveSessionId((prev) => (prev === sessionId ? prev : sessionId));
+      navigate(buildChatUrl(sessionId));
       loadSessions();
     },
-    [loadSessions]
+    [buildChatUrl, loadSessions, navigate]
   );
 
   const handleRenameSession = useCallback(
@@ -364,6 +382,7 @@ const Chat: React.FC = () => {
           initialSessionId={activeSessionId}
           initialPlantId={initialPlantId}
           onSessionChange={handleSessionChange}
+          initialAutoUpload={searchParams.get("upload") === "true"}
         />
       </div>
     </div>

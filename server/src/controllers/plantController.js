@@ -78,6 +78,7 @@ export const getPlants = async (req, res) => {
           diseasePrediction: { $first: "$diseasePrediction" },
           createdAt: { $first: "$createdAt" },
           recommendations: { $first: "$recommendations" },
+          careActions: { $first: "$careActions" },
           nextCheckDate: { $first: "$nextCheckDate" },
           monitoringReason: { $first: "$monitoringReason" },
           conditionTrend: { $first: "$conditionTrend" },
@@ -118,6 +119,7 @@ export const getPlants = async (req, res) => {
           diseasePrediction: refreshed.diseasePrediction,
           createdAt: refreshed.createdAt,
           recommendations: refreshed.recommendations,
+          careActions: refreshed.careActions,
           nextCheckDate: refreshed.nextCheckDate,
           monitoringReason: refreshed.monitoringReason,
           conditionTrend: refreshed.conditionTrend,
@@ -153,6 +155,7 @@ export const getPlants = async (req, res) => {
                 a.recommendations.length > 0
                   ? a.recommendations[0]
                   : null,
+              careActions: Array.isArray(a.careActions) ? a.careActions : [],
               nextCheckDate: a.nextCheckDate,
               monitoringReason: a.monitoringReason || null,
               conditionTrend: a.conditionTrend || "unknown",

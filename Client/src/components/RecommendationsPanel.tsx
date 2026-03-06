@@ -40,6 +40,7 @@ interface PlantSummary {
     nextCheckDate?: string | null;
     monitoringReason?: string | null;
     conditionTrend?: string | null;
+    careActions?: string[];
   } | null;
 }
 
@@ -174,9 +175,9 @@ const RecommendationsPanel: React.FC = () => {
   };
 
   const formatShortDate = (iso?: string) => {
-    if (!iso) return "Not set";
+    if (!iso) return null;
     const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "Not set";
+    if (Number.isNaN(d.getTime())) return null;
     return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   };
 
@@ -192,17 +193,30 @@ const RecommendationsPanel: React.FC = () => {
     }
   };
 
-  const handleOpenChat = (plantId: string, sessionKey?: string | null) => {
-    if (sessionKey) {
-      navigate(`/chat/${sessionKey}?plantId=${plantId}`);
-      return;
+  const handleOpenChat = async (plantId: string, sessionKey?: string | null) => {
+    const goTo = (key?: string | null) => {
+      if (!key) return false;
+      navigate(`/chat/${key}?plantId=${plantId}`);
+      return true;
+    };
+
+    // Use provided session key if present
+    if (goTo(sessionKey)) return;
+
+    // Otherwise resolve (or create) a session for this plant
+    try {
+      const res = await fetch(apiUrl(`/api/chat/sessions/by-plant/${plantId}`), {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      if (goTo(data.sessionKey || data.id)) return;
+    } catch (err) {
+      console.error("Failed to resolve chat session for plant:", err);
     }
-    fetch(apiUrl(`/api/chat/sessions/by-plant/${plantId}`), {
-      credentials: "include",
-    })
-      .then((res) => res.json())
-      .then((data) => navigate(`/chat/${data.sessionKey}?plantId=${plantId}`))
-      .catch(() => navigate(`/chat?plantId=${plantId}`));
+
+    // Fallback: open generic chat with plant context
+    navigate(`/chat?plantId=${plantId}`);
   };
 
   const handleMarkTreated = async (plantId: string) => {
@@ -344,7 +358,7 @@ const RecommendationsPanel: React.FC = () => {
               : trend === "stable"
               ? "Stable"
               : "Monitoring";
-          const score = healthScore(plant);
+          const score = plant.latestAssessment ? healthScore(plant) : 0;
           const isExpanded = expandedId === plant.id;
 
           return (
@@ -379,51 +393,37 @@ const RecommendationsPanel: React.FC = () => {
                         {title}
                       </h3>
                       <p className="text-xs text-slate-500">
-                        {plant.cropType || "Crop"} • {time || "Awaiting data"}
+                        {plant.cropType}{time ? ` • ${time}` : ""}
                       </p>
                     </div>
                     <SeverityBadge severity={priority} />
                   </div>
                   <div className="flex items-center gap-2 mt-2 flex-wrap text-xs">
                     <TrendBadge trend={trendLabel} />
-                    <NextCheckBadge date={nextCheck} />
+                    {nextCheck && <NextCheckBadge date={nextCheck} />}
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 mb-3">
-                <HealthMeter score={score} />
-                <span className="text-xs text-slate-500">
-                  Health score placeholder
-                </span>
-              </div>
-
-              <div className="bg-white/70 rounded-xl border border-slate-100 p-3 space-y-2">
-                <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
-                  <span>Detected issue</span>
-                  <span className="text-slate-500">
-                    {plant.latestAssessment?.diseasePrediction ||
-                      "Pending analysis"}
-                  </span>
+              {score > 0 && (
+                <div className="flex items-center gap-3 mb-3">
+                  <HealthMeter score={score} />
                 </div>
-                <p className="text-sm text-slate-800 leading-relaxed">
-                  {isExpanded ? description : truncate(description, 160)}
-                </p>
-                {plant.latestAssessment?.monitoringReason && (
-                  <p className="text-xs text-slate-500">
-                    {truncate(plant.latestAssessment.monitoringReason, 120)}
-                  </p>
-                )}
-                <button
-                  onClick={() =>
-                    setExpandedId((prev) => (prev === plant.id ? null : plant.id))
-                  }
-                  className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1"
-                >
-                  {isExpanded ? "Show less" : "View details"}
-                  <ArrowUpRight className="h-3 w-3" />
-                </button>
-              </div>
+              )}
+
+              {plant.latestAssessment?.careActions && plant.latestAssessment.careActions.length > 0 && (
+                <div className="bg-white/70 rounded-xl border border-slate-100 p-3 space-y-2 mt-2">
+                  <p className="text-xs font-semibold text-slate-700">Recommended actions</p>
+                  <ul className="space-y-1.5">
+                    {plant.latestAssessment.careActions.slice(0, 3).map((action, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-sm text-slate-800">
+                        <span className="text-emerald-500 mt-0.5">•</span>
+                        <span className="leading-relaxed">{action}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <div className="mt-3 flex flex-wrap gap-2">
                 <ActionButton
@@ -442,7 +442,8 @@ const RecommendationsPanel: React.FC = () => {
                   onClick={() =>
                     handleOpenChat(
                       plant.id,
-                      plant.latestSessionKey || plant.linkedChatId
+                      plant.latestSessionKey || plant.linkedChatId,
+                      true
                     )
                   }
                 />
