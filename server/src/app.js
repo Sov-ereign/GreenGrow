@@ -19,7 +19,14 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 const app = express();
 
-const allowedOrigins = ["http://localhost:5173", "http://localhost:3000","https://green-grow-zeta.vercel.app"];
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "https://green-grow-zeta.vercel.app",
+  "https://greengrow-wufp.onrender.com",
+  "https://greengrow-wufp.vercel.app",
+  "https://greengrow.vercel.app",
+];
 
 // Robust CORS configuration for dev
 const corsOptions = {
