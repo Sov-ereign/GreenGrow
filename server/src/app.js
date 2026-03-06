@@ -3,18 +3,23 @@ import cors from "cors";
 import morgan from "morgan";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
+import path from "path";
+import { fileURLToPath } from "url";
 import authRoutes from "./routes/authRoutes.js";
 import mandiRoutes from "./routes/mandiRoutes.js";
 import newsRoutes from "./routes/newsRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import farmarInfoSave from "./routes/farmarInfoSave.js";
 import ivrRoutes from "./routes/ivrRoutes.js";
+import plantRoutes from "./routes/plantRoutes.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 const app = express();
 
-const allowedOrigins = ["http://localhost:3000", "https://green-grow-zeta.vercel.app", "http://localhost:5173"];
+const allowedOrigins = ["http://localhost:5173", "http://localhost:3000","https://green-grow-zeta.vercel.app"];
 
 // Robust CORS configuration for dev
 const corsOptions = {
@@ -46,6 +51,7 @@ app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
@@ -57,6 +63,7 @@ app.use("/api/news", newsRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/farm", farmarInfoSave);
 app.use("/api/ivr", ivrRoutes);
+app.use("/api/plants", plantRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

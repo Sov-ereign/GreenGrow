@@ -4,24 +4,122 @@ import multer from "multer";
 import FormData from "form-data";
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import { fileURLToPath } from "url";
 import {
   createChatCompletion,
   getGroqModel,
   getMessageText,
 } from "../services/groqClient.js";
+import { protect } from "../middleware/authMiddleware.js";
+import Plant from "../models/Plant.js";
+import PlantImage from "../models/PlantImage.js";
+import PlantAssessment from "../models/PlantAssessment.js";
+import ChatSession from "../models/ChatSession.js";
+import ChatMessage from "../models/ChatMessage.js";
+import Recommendation from "../models/Recommendation.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-const router = express.Router();
-const upload = multer({ dest: "uploads/" });
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, "../../uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
+
+const router = express.Router();
+const upload = multer({ dest: uploadsDir });
+
+const uploadImageToCloudinary = async (localFilePath, originalFilename) => {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+  const folder = process.env.CLOUDINARY_UPLOAD_FOLDER || "greengrow/plants";
+
+  if (!cloudName || !apiKey || !apiSecret) {
+    const missing = [
+      !cloudName ? "CLOUDINARY_CLOUD_NAME" : null,
+      !apiKey ? "CLOUDINARY_API_KEY" : null,
+      !apiSecret ? "CLOUDINARY_API_SECRET" : null,
+    ].filter(Boolean);
+    throw new Error(`Cloudinary configuration is missing: ${missing.join(", ")}`);
+  }
+
+  const timestamp = Math.floor(Date.now() / 1000);
+  const signatureBase = `folder=${folder}&timestamp=${timestamp}${apiSecret}`;
+  const signature = crypto
+    .createHash("sha1")
+    .update(signatureBase)
+    .digest("hex");
+
+  const formData = new FormData();
+  formData.append(
+    "file",
+    fs.createReadStream(localFilePath),
+    originalFilename || path.basename(localFilePath)
+  );
+  formData.append("api_key", apiKey);
+  formData.append("timestamp", String(timestamp));
+  formData.append("folder", folder);
+  formData.append("signature", signature);
+
+  const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+  const response = await axios.post(cloudinaryUrl, formData, {
+    headers: formData.getHeaders(),
+    maxBodyLength: Infinity,
+  });
+
+  return {
+    secureUrl: response.data?.secure_url,
+    publicId: response.data?.public_id,
+  };
+};
+
+const normalizeSessionTitle = (raw = "") => {
+  const cleaned = String(raw)
+    .replace(/\s+/g, " ")
+    .replace(/^["'`\-\s]+|["'`\-\s]+$/g, "")
+    .trim();
+  if (!cleaned) return "New chat";
+  return cleaned.length > 80 ? `${cleaned.slice(0, 80).trim()}...` : cleaned;
+};
+
+const generateSessionTitle = async ({
+  userText = "",
+  assistantText = "",
+  language = "English",
+}) => {
+  const fallbackSource = userText || assistantText || "New chat";
+  const fallback = normalizeSessionTitle(fallbackSource);
+
+  try {
+    const data = await createChatCompletion({
+      model: getGroqModel("llama-3.1-8b-instant"),
+      messages: [
+        {
+          role: "system",
+          content:
+            "Create a short chat title (3-7 words). Return plain text only, no quotes, no punctuation at the end.",
+        },
+        {
+          role: "user",
+          content: `Language: ${language}
+User message: ${userText}
+Assistant response: ${assistantText}
+Generate the best chat title now.`,
+        },
+      ],
+      temperature: 0.2,
+      max_completion_tokens: 24,
+    });
+
+    const generated = getMessageText(data) || "";
+    return normalizeSessionTitle(generated || fallback);
+  } catch (err) {
+    return fallback;
+  }
+};
 
 // Test route to verify chat routes are loaded
 router.get("/test", (req, res) => {
@@ -31,13 +129,441 @@ router.get("/test", (req, res) => {
   });
 });
 
-// General chat endpoint (text queries)
-router.post("/message", async (req, res) => {
+// Helper: map disease + confidence to severity/risk
+const deriveSeverityAndRisk = (diseaseResult) => {
+  if (!diseaseResult) {
+    return { severity: "low", riskLevel: "none", currentStatus: "unknown" };
+  }
+
+  const confidence = typeof diseaseResult.confidence === "number"
+    ? diseaseResult.confidence
+    : 0;
+  const isHealthy =
+    typeof diseaseResult.is_healthy === "boolean"
+      ? diseaseResult.is_healthy
+      : (diseaseResult.status || "").toLowerCase() === "healthy";
+
+  if (isHealthy) {
+    return {
+      severity: "low",
+      riskLevel: "low",
+      currentStatus: "healthy",
+    };
+  }
+
+  let severity = "low";
+  let riskLevel = "low";
+
+  if (confidence >= 80) {
+    severity = "high";
+    riskLevel = "high";
+  } else if (confidence >= 50) {
+    severity = "medium";
+    riskLevel = "medium";
+  }
+
+  return {
+    severity,
+    riskLevel,
+    currentStatus: "diseased",
+  };
+};
+
+// Helper: simple crop type inference from disease result
+const inferCropTypeFromDisease = (diseaseResult) => {
+  if (!diseaseResult) return null;
+  const source =
+    diseaseResult.disease || diseaseResult.predicted_class || "";
+  if (!source) return null;
+  const cleaned = String(source).replace(/__/g, "_");
+  const parts = cleaned.split("_");
+  if (!parts.length) return null;
+  const first = parts[0];
+  return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+};
+
+// Helper: categorize issue based on disease prediction text
+const categorizeIssue = (diseasePrediction = "") => {
+  const text = String(diseasePrediction).toLowerCase();
+
+  if (
+    text.includes("aphid") ||
+    text.includes("mite") ||
+    text.includes("whitefly") ||
+    text.includes("thrip") ||
+    text.includes("pest") ||
+    text.includes("insect")
+  ) {
+    return "pest";
+  }
+
+  if (
+    text.includes("blight") ||
+    text.includes("mold") ||
+    text.includes("mould") ||
+    text.includes("rust") ||
+    text.includes("spot") ||
+    text.includes("mildew") ||
+    text.includes("fung")
+  ) {
+    return "fungal";
+  }
+
+  if (
+    text.includes("dry") ||
+    text.includes("drought") ||
+    text.includes("wilt") ||
+    text.includes("moisture") ||
+    text.includes("water")
+  ) {
+    return "water";
+  }
+
+  if (
+    text.includes("deficiency") ||
+    text.includes("nutrient") ||
+    text.includes("nitrogen") ||
+    text.includes("phosphorus") ||
+    text.includes("potassium") ||
+    text.includes("magnesium") ||
+    text.includes("iron")
+  ) {
+    return "nutrient";
+  }
+
+  return "other";
+};
+
+// Helper: determine condition trend compared to previous assessment
+const determineConditionTrend = (previousAssessment, currentSeverity) => {
+  if (!previousAssessment || !previousAssessment.severity) {
+    return "unknown";
+  }
+
+  const rank = { low: 1, medium: 2, high: 3 };
+  const prevRank = rank[previousAssessment.severity] || 0;
+  const currRank = rank[currentSeverity] || 0;
+
+  if (!prevRank || !currRank) return "unknown";
+  if (currRank > prevRank) return "worsening";
+  if (currRank < prevRank) return "improving";
+  return "stable";
+};
+
+// Helper: compute dynamic follow-up details
+const computeFollowUpPlan = ({
+  severity,
+  diseasePrediction,
+  confidenceScore,
+  conditionTrend,
+}) => {
+  const category = categorizeIssue(diseasePrediction);
+  const careActions = [];
+  const followUpQuestions = [];
+  let monitoringReason = "";
+
+  // Base interval in days, derived from severity
+  let days;
+  if (severity === "high") days = 2;
+  else if (severity === "medium") days = 3;
+  else days = 5; // low
+
+  // Category-specific adjustments and actions
+  if (category === "pest") {
+    monitoringReason = "Possible pest / insect pressure on the plant.";
+    careActions.push(
+      "Inspect the underside of leaves for aphids or other insects.",
+      "Spray with neem oil or an appropriate insecticide following label instructions.",
+      "Isolate heavily affected plants if possible to reduce spread."
+    );
+    followUpQuestions.push(
+      "Did you inspect the underside of the leaves for insects?",
+      "Did you apply neem oil or another pesticide?",
+      "Are you seeing fewer insects after treatment?"
+    );
+    days = Math.min(days, 3);
+  } else if (category === "fungal") {
+    monitoringReason = "Possible fungal or leaf-spot type infection.";
+    careActions.push(
+      "Remove and safely dispose of heavily infected leaves.",
+      "Avoid overhead irrigation and reduce excess moisture on leaves.",
+      "Apply a suitable fungicide if recommended in your region."
+    );
+    followUpQuestions.push(
+      "Did you remove the most affected leaves?",
+      "Did you adjust watering to reduce leaf wetness?",
+      "Did you apply any fungicide, and has the spread slowed?"
+    );
+    days = Math.max(days, 4);
+  } else if (category === "water") {
+    monitoringReason = "Stress related to soil moisture or watering.";
+    careActions.push(
+      "Water the plant deeply if the top soil is dry, but avoid waterlogging.",
+      "Check that drainage is good and the roots are not sitting in water.",
+      "Monitor soil moisture before each watering instead of using a fixed schedule."
+    );
+    followUpQuestions.push(
+      "Did you adjust your watering based on soil moisture?",
+      "Is the soil staying evenly moist, not too dry or waterlogged?",
+      "Have the leaves perked up after correcting watering?"
+    );
+    days = Math.max(2, Math.min(days, 4));
+  } else if (category === "nutrient") {
+    monitoringReason = "Possible nutrient imbalance or deficiency.";
+    careActions.push(
+      "Check the pattern of leaf yellowing or discoloration (old vs new leaves).",
+      "Apply a balanced or crop-specific fertilizer as per recommendation.",
+      "Observe new leaf growth for improvement after fertilization."
+    );
+    followUpQuestions.push(
+      "Did you apply the recommended fertilizer?",
+      "Is new growth looking healthier than older leaves?",
+      "Has the yellowing or discoloration slowed down?"
+    );
+    days = Math.max(days, 5);
+  } else {
+    monitoringReason =
+      "General plant health monitoring based on current image and symptoms.";
+    careActions.push(
+      "Continue observing the plant closely for any spread of symptoms.",
+      "Keep irrigation, fertilization, and pest management within recommended ranges.",
+      "Avoid sudden changes in management unless clearly needed."
+    );
+    followUpQuestions.push(
+      "Have the symptoms spread to new leaves or plants?",
+      "Did you change anything in watering, fertilization, or spraying?",
+      "Do you notice any new type of symptom compared to today?"
+    );
+  }
+
+  // Adjust for confidence – low confidence → earlier follow-up
+  const numericConfidence =
+    typeof confidenceScore === "number" ? confidenceScore : null;
+  if (numericConfidence !== null) {
+    const pct = numericConfidence > 1 ? numericConfidence : numericConfidence * 100;
+    if (pct < 50) {
+      days = Math.min(days, 2);
+      monitoringReason +=
+        " Diagnosis confidence is low, so an earlier follow-up image is recommended.";
+      followUpQuestions.push(
+        "Can you upload a clearer, closer image of the affected area?"
+      );
+    }
+  }
+
+  // Adjust based on trend
+  if (conditionTrend === "worsening") {
+    days = Math.max(1, days - 1);
+    monitoringReason +=
+      " Previous assessments suggest the problem may be worsening, so follow-up is sooner.";
+  } else if (conditionTrend === "improving") {
+    days = days + 2;
+    monitoringReason +=
+      " The plant appears to be improving, so the follow-up interval can be slightly longer.";
+  }
+
+  // Fallback to 3 days if something went wrong
+  if (!Number.isFinite(days) || days <= 0) {
+    days = 3;
+  }
+
+  const nextCheckDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+
+  // Final follow-up request
+  followUpQuestions.push(
+    `Please upload another clear image in about ${days} day(s) so I can reassess the plant.`
+  );
+
+  return { careActions, followUpQuestions, monitoringReason, nextCheckDate };
+};
+
+// List chat sessions for the current user (for chat history sidebar)
+router.get("/sessions", protect, async (req, res) => {
   try {
-    const { message } = req.body;
+    const sessions = await ChatSession.find({ user: req.user._id })
+      .populate("plant")
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    const sessionIds = sessions.map((s) => s._id);
+
+    const lastMessages = await ChatMessage.aggregate([
+      { $match: { session: { $in: sessionIds } } },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: "$session",
+          message: { $first: "$message" },
+          sender: { $first: "$sender" },
+          createdAt: { $first: "$createdAt" },
+        },
+      },
+    ]);
+
+    const lastBySession = new Map();
+    lastMessages.forEach((entry) => {
+      lastBySession.set(String(entry._id), entry);
+    });
+
+    const result = sessions.map((session) => {
+      const last = lastBySession.get(String(session._id));
+      const titleFromSession = session.title || null;
+      const titleFromPlant =
+        session.plant?.plantName || session.plant?.cropType || null;
+      const lastMessageText = last?.message || "";
+      const lastMessageAt = last?.createdAt || session.updatedAt || session.createdAt;
+
+      // If no explicit title, fall back to snippet of last message
+      const title =
+        titleFromSession ||
+        titleFromPlant ||
+        (lastMessageText
+          ? lastMessageText.slice(0, 40) +
+            (lastMessageText.length > 40 ? "..." : "")
+          : "New chat");
+
+      return {
+        id: session._id,
+        plantId: session.plant ? session.plant._id || session.plant : null,
+        title,
+        lastMessage: lastMessageText,
+        lastMessageAt,
+      };
+    });
+
+    res.json({ sessions: result });
+  } catch (err) {
+    console.error("Error fetching chat sessions:", err);
+    res.status(500).json({ error: "Failed to load chat sessions" });
+  }
+});
+
+// Get messages for a specific chat session
+router.get("/sessions/:id", protect, async (req, res) => {
+  try {
+    const session = await ChatSession.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    }).lean();
+
+    if (!session) {
+      return res.status(404).json({ error: "Chat session not found" });
+    }
+
+    const messages = await ChatMessage.find({ session: session._id })
+      .populate("image", "storagePath cloudinaryPublicId")
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const formattedMessages = messages.map((m) => ({
+      id: m._id,
+      sender: m.sender,
+      message: m.message,
+      timestamp: m.createdAt,
+      imageUrl: m.image?.storagePath || null,
+      imagePublicId: m.image?.cloudinaryPublicId || null,
+    }));
+
+    res.json({
+      sessionId: session._id,
+      plantId: session.plant || null,
+      messages: formattedMessages,
+    });
+  } catch (err) {
+    console.error("Error fetching chat session messages:", err);
+    res.status(500).json({ error: "Failed to load chat session messages" });
+  }
+});
+
+router.patch("/sessions/:id", protect, async (req, res) => {
+  try {
+    const rawTitle = String(req.body?.title || "").trim();
+    if (!rawTitle) {
+      return res.status(400).json({ error: "Title is required" });
+    }
+    const nextTitle = normalizeSessionTitle(rawTitle);
+
+    const session = await ChatSession.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!session) {
+      return res.status(404).json({ error: "Chat session not found" });
+    }
+
+    session.title = nextTitle;
+    await session.save();
+
+    res.json({
+      session: {
+        id: session._id,
+        title: session.title,
+      },
+    });
+  } catch (err) {
+    console.error("Error renaming chat session:", err.message);
+    res.status(500).json({ error: "Failed to rename chat session" });
+  }
+});
+
+router.delete("/sessions/:id", protect, async (req, res) => {
+  try {
+    const session = await ChatSession.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!session) {
+      return res.status(404).json({ error: "Chat session not found" });
+    }
+
+    await ChatMessage.deleteMany({ session: session._id });
+    await ChatSession.deleteOne({ _id: session._id });
+
+    res.json({ success: true, id: session._id });
+  } catch (err) {
+    console.error("Error deleting chat session:", err.message);
+    res.status(500).json({ error: "Failed to delete chat session" });
+  }
+});
+
+// General chat endpoint (text queries) – now authenticated and session-aware
+router.post("/message", protect, async (req, res) => {
+  try {
+    const { message, plantId, sessionId } = req.body;
     if (!message) {
       return res.status(400).json({ error: "Message is required" });
     }
+
+    let plant = null;
+    if (plantId) {
+      plant = await Plant.findOne({
+        _id: plantId,
+        user: req.user._id,
+      });
+    }
+
+    let session = null;
+    if (sessionId) {
+      session = await ChatSession.findOne({
+        _id: sessionId,
+        user: req.user._id,
+      });
+    }
+
+    if (!session) {
+      session = await ChatSession.create({
+        user: req.user._id,
+        plant: plant ? plant._id : undefined,
+      });
+    }
+
+    await ChatMessage.create({
+      session: session._id,
+      sender: "user",
+      message: message.trim(),
+    });
 
     const prompt =
       "You are an AI farming advisor for GreenGrow. Help farmers with crop cultivation, " +
@@ -58,7 +584,25 @@ router.post("/message", async (req, res) => {
       getMessageText(data) ||
       "I'm sorry, I couldn't process your question. Please try again.";
 
-    res.json({ response: aiText });
+    if (!session.title) {
+      session.title = await generateSessionTitle({
+        userText: message.trim(),
+        assistantText: aiText,
+      });
+      await session.save();
+    }
+
+    await ChatMessage.create({
+      session: session._id,
+      sender: "assistant",
+      message: aiText,
+    });
+
+    res.json({
+      response: aiText,
+      plantId: plant ? plant._id : null,
+      sessionId: session._id,
+    });
   } catch (err) {
     console.error("Error in chat message:", err.response?.data || err.message);
     console.error("Full error:", err);
@@ -74,12 +618,18 @@ router.post("/message", async (req, res) => {
   }
 });
 
-// Chat with image endpoint (disease detection + advice)
-router.post("/image-analysis", upload.single("image"), async (req, res) => {
+// Chat with image endpoint (disease detection + advice + persistence)
+router.post(
+  "/image-analysis",
+  protect,
+  upload.single("image"),
+  async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "Image file is required" });
     }
+
+    const { prompt: userPrompt, language, plantId, sessionId } = req.body;
 
     // Step 1: Send image to Flask backend for disease detection
     const flaskUrl = process.env.FLASK_API_URL || "http://localhost:5001";
@@ -105,37 +655,110 @@ router.post("/image-analysis", upload.single("image"), async (req, res) => {
     }
 
     // Step 2: Build prompt for Groq (text-only guidance)
+    // We ask Groq to return a well-structured Markdown answer so the UI
+    // consistently shows the same sections for every image analysis.
     let prompt = `You are an AI farming advisor for GreenGrow. A farmer has uploaded a plant image for analysis.
-Provide practical, step-by-step advice for crop care, disease prevention, and treatment.`;
+
+Your job is to analyse the plant condition and provide clear, practical guidance.
+Always answer in simple, farmer-friendly language.
+
+STRICT RESPONSE FORMAT (Markdown):
+
+**Detected issue:** <very short name of the most likely problem, including crop if obvious>
+
+**Description:** <2–4 sentences that explain what this problem is, why it happens, and what parts of the plant are affected.>
+
+**Recommended treatment:**
+- <bullet point 1 with a concrete action>
+- <bullet point 2 with a concrete action>
+- <bullet point 3 with a concrete action>
+
+**Monitoring and follow-up:**
+- <how the farmer can watch the plant over the next few days>
+- <what signals mean it is getting better or worse>
+- <when they should contact an expert or extension worker if available>
+
+Do NOT include any other sections or headings. Keep the answer focused, practical, and easy to follow.`;
 
     if (diseaseResult) {
-      prompt += `
+      const rawClass =
+        diseaseResult.predicted_class ||
+        diseaseResult.disease ||
+        "";
+      const prettyDiseaseName =
+        diseaseResult.disease ||
+        String(rawClass).replace(/__/g, " ").replace(/_/g, " ");
+      const isHealthyFlag =
+        diseaseResult.is_healthy === true ||
+        String(rawClass).toLowerCase().includes("healthy") ||
+        String(diseaseResult.status || "").toLowerCase() === "healthy";
 
-Our disease detection model identified:
-- Disease/Condition: ${
-        diseaseResult.disease || diseaseResult.predicted_class || "Unknown"
-      }
+      if (isHealthyFlag) {
+        prompt += `
+
+Our separate vision model thinks this plant is **HEALTHY**.
+
+- Crop / context: ${inferCropTypeFromDisease(diseaseResult) || "Not specified"}
+- Internal class name: ${rawClass || "unknown"}
 - Confidence: ${
-        diseaseResult.confidence
-          ? `${diseaseResult.confidence.toFixed(1)}%`
-          : "N/A"
+          typeof diseaseResult.confidence === "number"
+            ? `${diseaseResult.confidence.toFixed(1)}%`
+            : "N/A"
+        }
+- Status: healthy
+
+When you fill the sections above for a healthy plant:
+- In **Detected issue**, clearly say there is **no disease detected**, for example: "No disease detected (healthy tomato plant)".
+- In **Recommended treatment**, DO NOT recommend any pesticide, fungicide, or contacting an expert.
+  Instead, give 2–3 short preventive care tips (watering, spacing, monitoring).
+- In **Monitoring and follow-up**, just explain what to watch for in future and when they might need help *only if new symptoms appear*.`;
+      } else {
+        prompt += `
+
+Our disease detection model identified a likely problem:
+
+- Disease/Condition (internal class name): ${rawClass || "Unknown"}
+- Human-friendly disease name you should use in the answer: ${prettyDiseaseName}
+- Confidence: ${
+          typeof diseaseResult.confidence === "number"
+            ? `${diseaseResult.confidence.toFixed(1)}%`
+            : "N/A"
+        }
+- Status: disease suspected
+
+When you write **Detected issue**, use a clean, human-friendly name without underscores,
+for example: "Tomato yellow leaf curl virus" instead of "Tomato___Tomato_Yellow_Leaf_Curl_Virus".`;
       }
-- Status: ${diseaseResult.status || "Detected"}`;
     } else {
       prompt +=
         "\n\nNo automated disease detection result was available. Provide general diagnostic steps and safe recommendations.";
     }
 
+    if (userPrompt && typeof userPrompt === "string") {
+      prompt += `
+
+Farmer's question or description:
+- ${userPrompt}`;
+    }
+
+    // Optional language guidance – default to English if not provided
+    const languageName =
+      typeof language === "string" && language.trim()
+        ? language.trim()
+        : "English";
+
     const messages = [
       {
         role: "system",
-        content:
-          "Respond in a friendly, practical tone. Keep it concise but actionable.",
+        content: `You are an AI farming advisor for GreenGrow.
+Respond in a friendly, practical tone using clear, farmer-friendly language.
+Always reply in ${languageName}. Keep it concise but actionable.`,
       },
       { role: "user", content: prompt },
     ];
 
-    let aiText = "I couldn't analyze the image. Please try again with a clearer photo.";
+    let aiText =
+      "I couldn't analyze the image. Please try again with a clearer photo.";
     try {
       const data = await createChatCompletion({
         model: getGroqModel("llama-3.1-8b-instant"),
@@ -148,12 +771,185 @@ Our disease detection model identified:
       console.error("Groq API error:", groqErr.response?.data || groqErr.message);
     }
 
-    // Cleanup uploaded file
-    fs.unlinkSync(imagePath);
+    // Step 3: Persist plant, image, assessment, and chat
+    // Resolve or create plant profile
+    let plant = null;
+    if (plantId) {
+      plant = await Plant.findOne({
+        _id: plantId,
+        user: req.user._id,
+      });
+    }
+
+    if (!plant) {
+      const inferredCropType = inferCropTypeFromDisease(diseaseResult);
+      const baseName = inferredCropType || "Plant";
+
+      const countForUserAndCrop = await Plant.countDocuments({
+        user: req.user._id,
+        cropType: inferredCropType,
+      });
+
+      plant = await Plant.create({
+        user: req.user._id,
+        plantName: `${baseName} #${countForUserAndCrop + 1}`,
+        cropType: inferredCropType,
+        location: undefined,
+      });
+    }
+
+    // Look up previous assessment for trend analysis
+    const previousAssessment = await PlantAssessment.findOne({
+      plant: plant._id,
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    let imageStoragePath = null;
+    let imagePublicId = null;
+    try {
+      const cloudinaryUpload = await uploadImageToCloudinary(
+        imagePath,
+        req.file.originalname
+      );
+      if (cloudinaryUpload.secureUrl) {
+        imageStoragePath = cloudinaryUpload.secureUrl;
+        imagePublicId = cloudinaryUpload.publicId || null;
+      }
+    } catch (cloudErr) {
+      console.warn(
+        "Cloudinary upload unavailable, falling back to local uploads:",
+        cloudErr.message
+      );
+    }
+
+    // Fallback: keep image locally and expose it via /uploads.
+    if (!imageStoragePath) {
+      imageStoragePath = `${req.protocol}://${req.get("host")}/uploads/${path.basename(
+        imagePath
+      )}`;
+    } else if (fs.existsSync(imagePath)) {
+      // Local temp upload is no longer needed once Cloudinary upload succeeds.
+      fs.unlinkSync(imagePath);
+    }
+
+    // Persist image reference in MongoDB using stored image link
+    const plantImage = await PlantImage.create({
+      plant: plant._id,
+      user: req.user._id,
+      storagePath: imageStoragePath,
+      cloudinaryPublicId: imagePublicId,
+    });
+
+    const { severity, riskLevel, currentStatus } =
+      deriveSeverityAndRisk(diseaseResult);
+
+    const numericConfidence =
+      typeof diseaseResult?.confidence === "number"
+        ? diseaseResult.confidence
+        : undefined;
+
+    const diseasePredictionValue =
+      diseaseResult?.disease || diseaseResult?.predicted_class || "";
+
+    const conditionTrend = determineConditionTrend(
+      previousAssessment,
+      severity
+    );
+
+    const followUpPlan = computeFollowUpPlan({
+      severity,
+      diseasePrediction: diseasePredictionValue,
+      confidenceScore: numericConfidence,
+      conditionTrend,
+    });
+
+    const assessment = await PlantAssessment.create({
+      plant: plant._id,
+      image: plantImage._id,
+      symptomsDetected: [],
+      diseasePrediction: diseasePredictionValue,
+      confidenceScore: numericConfidence,
+      severity,
+      recommendations: [aiText],
+      careActions: followUpPlan.careActions,
+      followUpQuestions: followUpPlan.followUpQuestions,
+      monitoringReason: followUpPlan.monitoringReason,
+      nextCheckDate: followUpPlan.nextCheckDate,
+      conditionTrend,
+    });
+
+    // Update plant with latest assessment info
+    plant.lastAssessmentAt = assessment.createdAt;
+    plant.latestImage = plantImage._id;
+    plant.currentStatus = currentStatus;
+    plant.riskLevel = riskLevel;
+    await plant.save();
+
+    // Create open recommendation record
+    await Recommendation.create({
+      plant: plant._id,
+      assessment: assessment._id,
+      text: aiText,
+      severity,
+      status: "open",
+    });
+
+    // Resolve or create chat session and messages
+    let session = null;
+    if (sessionId) {
+      session = await ChatSession.findOne({
+        _id: sessionId,
+        user: req.user._id,
+      });
+    }
+
+    if (!session) {
+      session = await ChatSession.create({
+        user: req.user._id,
+        plant: plant._id,
+      });
+    }
+
+    const userMessageText =
+      typeof userPrompt === "string" && userPrompt.trim().length > 0
+        ? userPrompt.trim()
+        : "Uploaded a plant image for analysis.";
+
+    if (!session.title) {
+      const titleSeed =
+        userMessageText ||
+        diseasePredictionValue ||
+        (diseaseResult?.disease || diseaseResult?.predicted_class || "");
+      session.title = await generateSessionTitle({
+        userText: titleSeed,
+        assistantText: aiText,
+        language: languageName,
+      });
+      await session.save();
+    }
+
+    await ChatMessage.create({
+      session: session._id,
+      sender: "user",
+      message: userMessageText,
+      image: plantImage._id,
+    });
+
+    await ChatMessage.create({
+      session: session._id,
+      sender: "assistant",
+      message: aiText,
+    });
 
     res.json({
       response: aiText,
       diseaseDetection: diseaseResult || null,
+      plantId: plant._id,
+      sessionId: session._id,
+      imageUrl: plantImage.storagePath,
+      imagePublicId: plantImage.cloudinaryPublicId || null,
+      assessment,
     });
   } catch (err) {
     console.error(
@@ -600,3 +1396,4 @@ Keep your response concise (2-3 sentences max) since this is a voice conversatio
 });
 
 export default router;
+

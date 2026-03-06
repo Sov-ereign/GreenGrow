@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
+from tensorflow.keras.applications import EfficientNetB0
+from tensorflow.keras import layers, models
 import numpy as np
 import os
 from werkzeug.utils import secure_filename
@@ -13,6 +15,18 @@ CORS(app)  # Enable CORS for all routes
 # Model paths - adjust based on your actual model location
 MODEL_WEIGHTS_PATH = os.path.join(os.path.dirname(__file__), '../model/disease_model.weights.h5')
 
+# Model input size (must match training)
+IMG_SIZE = (160, 160)
+
+CLASS_NAMES = ['Pepper__bell___Bacterial_spot', 'Pepper__bell___healthy', 
+               'Potato___Early_blight', 'Potato___Late_blight', 'Potato___healthy',
+               'Tomato_Bacterial_spot', 'Tomato_Early_blight', 'Tomato_Late_blight',
+               'Tomato_Leaf_Mold', 'Tomato_Septoria_leaf_spot', 
+               'Tomato_Spider_mites_Two_spotted_spider_mite', 'Tomato_Target_Spot',
+               'Tomato_Tomato_Yellow_Leaf_Curl_Virus', 'Tomato_Tomato_mosaic_virus',
+               'Tomato_healthy']
+
+
 # Try to load model - handle both .h5 and .weights.h5 formats
 model = None
 try:
@@ -22,23 +36,29 @@ try:
         model = load_model(model_path)
         print(f"✅ Loaded model from {model_path}")
     elif os.path.exists(MODEL_WEIGHTS_PATH):
-        # If only weights exist, you'll need to rebuild the model architecture
-        # For now, we'll use a fallback
-        print(f"⚠️ Only weights found at {MODEL_WEIGHTS_PATH}. Model architecture needed.")
-        model = None
+        # Rebuild the model architecture to load weights
+        inputs = layers.Input(shape=(*IMG_SIZE, 3))
+        x = layers.Rescaling(1.0 / 255)(inputs)
+        base_model = EfficientNetB0(
+            weights='imagenet',
+            include_top=False,
+            input_shape=(*IMG_SIZE, 3)
+        )
+        base_model.trainable = False
+        x = base_model(x)
+        x = layers.GlobalAveragePooling2D()(x)
+        x = layers.Dense(128, activation='relu')(x)
+        x = layers.Dropout(0.3)(x)
+        outputs = layers.Dense(len(CLASS_NAMES), activation='softmax')(x)
+        model = models.Model(inputs, outputs)
+        model.load_weights(MODEL_WEIGHTS_PATH)
+        print(f"? Loaded model weights from {MODEL_WEIGHTS_PATH}")
     else:
         print("⚠️ Model file not found. Disease detection will be disabled.")
 except Exception as e:
     print(f"⚠️ Error loading model: {e}. Disease detection will be disabled.")
     model = None
 
-CLASS_NAMES = ['Pepper__bell___Bacterial_spot', 'Pepper__bell___healthy', 
-               'Potato___Early_blight', 'Potato___Late_blight', 'Potato___healthy',
-               'Tomato_Bacterial_spot', 'Tomato_Early_blight', 'Tomato_Late_blight',
-               'Tomato_Leaf_Mold', 'Tomato_Septoria_leaf_spot', 
-               'Tomato_Spider_mites_Two_spotted_spider_mite', 'Tomato_Target_Spot',
-               'Tomato_Tomato_Yellow_Leaf_Curl_Virus', 'Tomato_Tomato_mosaic_virus',
-               'Tomato_healthy']
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
@@ -77,7 +97,7 @@ def predict():
         file.save(temp_path)
         
         # Process image
-        img = image.load_img(temp_path, target_size=(224, 224))
+        img = image.load_img(temp_path, target_size=IMG_SIZE)
         img_array = image.img_to_array(img)
         img_array = np.expand_dims(img_array, axis=0) / 255.0
         

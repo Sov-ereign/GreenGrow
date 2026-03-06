@@ -19,6 +19,7 @@ __pycache__/
 
 # Node
 node_modules/
+server/uploads/
 
 # Model weights/binaries (ignored by default)
 *.h5
