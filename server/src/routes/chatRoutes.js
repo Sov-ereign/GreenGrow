@@ -154,6 +154,49 @@ Generate the best chat title now.`,
   }
 };
 
+const languageNameMap = {
+  en: "English",
+  hi: "Hindi",
+  bn: "Bengali",
+  ta: "Tamil",
+  te: "Telugu",
+  mr: "Marathi",
+};
+
+const resolveLanguageName = (value = "en") => {
+  const lower = String(value || "en").toLowerCase();
+  return languageNameMap[lower] || value || "English";
+};
+
+const translateList = async (items = [], languageName = "English") => {
+  if (!items?.length || !languageName || languageName.toLowerCase() === "english") {
+    return items;
+  }
+
+  try {
+    const data = await createChatCompletion({
+      model: getGroqModel("llama-3.1-8b-instant"),
+      messages: [
+        {
+          role: "system",
+          content: `Translate these short care steps into ${languageName}. Keep each item concise. Return a JSON array of strings only.`,
+        },
+        { role: "user", content: JSON.stringify(items) },
+      ],
+      temperature: 0.2,
+      max_completion_tokens: 128,
+    });
+    const text = getMessageText(data) || "";
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) {
+      return parsed.filter(Boolean).map(String);
+    }
+  } catch (err) {
+    console.warn("Translation fallback failed:", err.message);
+  }
+  return items;
+};
+
 // Test route to verify chat routes are loaded
 router.get("/test", (req, res) => {
   res.json({
@@ -650,10 +693,12 @@ router.delete("/sessions/:id", protect, async (req, res) => {
 // General chat endpoint (text queries) – now authenticated and session-aware
 router.post("/message", protect, async (req, res) => {
   try {
-    const { message, plantId, sessionId } = req.body;
+    const { message, plantId, sessionId, language } = req.body;
     if (!message) {
       return res.status(400).json({ error: "Message is required" });
     }
+
+    const languageName = resolveLanguageName(language || "en");
 
     let plant = null;
     if (plantId) {
@@ -689,9 +734,10 @@ router.post("/message", protect, async (req, res) => {
     });
 
     const prompt =
-      "You are an AI farming advisor for GreenGrow. Help farmers with crop cultivation, " +
-      "weather, disease prevention, soil management, and agriculture best practices. " +
-      "Provide helpful, practical advice in a friendly and professional manner.";
+      `You are an AI farming advisor for GreenGrow. Help farmers with crop cultivation, ` +
+      `weather, disease prevention, soil management, and agriculture best practices. ` +
+      `Provide helpful, practical advice in a friendly and professional manner. ` +
+      `Always respond fully in ${languageName}, using simple, farmer-friendly language.`;
 
     const data = await createChatCompletion({
       model: getGroqModel("llama-3.1-8b-instant"),
@@ -711,6 +757,7 @@ router.post("/message", protect, async (req, res) => {
       session.title = await generateSessionTitle({
         userText: message.trim(),
         assistantText: aiText,
+        language: languageName,
       });
       await session.save();
     }
@@ -870,10 +917,7 @@ Farmer's question or description:
     }
 
     // Optional language guidance – default to English if not provided
-    const languageName =
-      typeof language === "string" && language.trim()
-        ? language.trim()
-        : "English";
+    const languageName = resolveLanguageName(language || "en");
 
     const messages = [
       {
@@ -1016,8 +1060,46 @@ Always reply in ${languageName}. Keep it concise but actionable.`,
       conditionTrend,
     });
 
-    // Use generated care actions if available, fallback to computed ones
-    const finalCareActions = generatedCareActions.length > 0 ? generatedCareActions : followUpPlan.careActions;
+    // Translate fallback actions/questions when Groq JSON is missing and language isn't English
+    const languageIsEnglish = languageName.toLowerCase() === "english";
+    let fallbackCareActions = followUpPlan.careActions;
+    let followUpQuestions = followUpPlan.followUpQuestions;
+    let monitoringReason = followUpPlan.monitoringReason;
+
+    if (!languageIsEnglish) {
+      if (generatedCareActions.length === 0) {
+        fallbackCareActions = await translateList(followUpPlan.careActions, languageName);
+      }
+      if (followUpQuestions?.length) {
+        followUpQuestions = await translateList(followUpQuestions, languageName);
+      }
+      if (monitoringReason) {
+        const translatedReason = await translateList([monitoringReason], languageName);
+        monitoringReason = translatedReason[0] || monitoringReason;
+      }
+    }
+
+    // Use generated care actions if available, otherwise translated/computed ones
+    const finalCareActions =
+      generatedCareActions.length > 0 ? generatedCareActions : fallbackCareActions;
+
+    // Build structured chat message for consistent UI rendering
+    const diseaseName =
+      diseaseResult?.disease ||
+      diseasePredictionValue ||
+      diseaseResult?.predicted_class ||
+      "Not identified";
+
+    const chatMessageText = `**Disease:** ${diseaseName}
+
+**Description:** ${aiText}
+
+**Recommended actions:**
+${(finalCareActions && finalCareActions.length
+  ? finalCareActions
+  : ["Monitor the plant daily for new symptoms. Keep leaves dry, avoid overwatering, and retake a clear photo if the issue worsens."])
+  .map((step) => `- ${step}`)
+  .join("\n")}`;
 
     const assessment = await PlantAssessment.create({
       plant: plant._id,
@@ -1028,8 +1110,8 @@ Always reply in ${languageName}. Keep it concise but actionable.`,
       severity,
       recommendations: [aiText],
       careActions: finalCareActions,
-      followUpQuestions: followUpPlan.followUpQuestions,
-      monitoringReason: followUpPlan.monitoringReason,
+      followUpQuestions,
+      monitoringReason,
       nextCheckDate: followUpPlan.nextCheckDate,
       conditionTrend,
     });
@@ -1099,12 +1181,16 @@ Always reply in ${languageName}. Keep it concise but actionable.`,
     await ChatMessage.create({
       session: session._id,
       sender: "assistant",
-      message: aiText,
+      message: chatMessageText,
     });
 
+    const diseaseDetectionPayload = diseaseResult
+      ? { ...diseaseResult, description: aiText }
+      : null;
+
     res.json({
-      response: aiText,
-      diseaseDetection: diseaseResult || null,
+      response: chatMessageText,
+      diseaseDetection: diseaseDetectionPayload,
       plantId: plant._id,
       sessionId: session._id,
       imageUrl: plantImage.storagePath,

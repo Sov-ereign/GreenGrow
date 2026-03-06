@@ -897,6 +897,7 @@ User query: ${input}`;
     try {
       const payload: any = {
         message: trimmed,
+        language,
       };
       if (activePlantId) payload.plantId = activePlantId;
       if (activeSessionId) payload.sessionId = activeSessionId;
@@ -959,7 +960,25 @@ User query: ${input}`;
 
   // Handle language change
   const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setLanguage(e.target.value);
+    const nextLang = e.target.value;
+    setLanguage(nextLang);
+    const notice: Record<string, string> = {
+      en: "Language changed to English.",
+      bn: "ভাষা বাংলা-তে পরিবর্তিত হয়েছে।",
+      hi: "भाषा हिंदी में बदल दी गई है।",
+      ta: "மொழி தமிழ் ஆக மாற்றப்பட்டது.",
+      te: "భాష తెలుగుకు మార్చబడింది.",
+      mr: "भाषा मराठीमध्ये बदलली आहे.",
+    };
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        text: notice[nextLang] || "Language updated.",
+        sender: "assistant",
+        timestamp: new Date(),
+      },
+    ]);
   };
 
   return (

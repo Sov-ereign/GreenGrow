@@ -118,7 +118,7 @@ const Home: React.FC = () => {
               className="flex items-center gap-2 px-4 py-2.5 bg-white text-emerald-700 rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all font-semibold"
             >
               <Plus className="w-5 h-5" />
-              New plot
+              Add Farm
             </button>
           </div>
         </div>

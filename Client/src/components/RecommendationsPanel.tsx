@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Bug,
@@ -78,6 +78,12 @@ const RecommendationsPanel: React.FC = () => {
   const [confirmPlantId, setConfirmPlantId] = useState<string | null>(null);
   const [confirmPlantTitle, setConfirmPlantTitle] = useState<string>("");
   const [confirmBusy, setConfirmBusy] = useState(false);
+
+  // New UI + filters
+  const [showAll, setShowAll] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [riskFilter, setRiskFilter] = useState<"all" | "high" | "medium" | "low">("all");
+  const carouselRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const fetchPlants = async () => {
@@ -230,6 +236,27 @@ const RecommendationsPanel: React.FC = () => {
 
   const sortedPlants = useMemo(() => {
     const list = [...plants];
+    const byPriority = (a: PlantSummary, b: PlantSummary) => {
+      const sevDiff =
+        severityWeight(b.latestAssessment?.severity) -
+        severityWeight(a.latestAssessment?.severity);
+      if (sevDiff !== 0) return sevDiff;
+      const aNext = a.latestAssessment?.nextCheckDate
+        ? new Date(a.latestAssessment.nextCheckDate).getTime()
+        : Infinity;
+      const bNext = b.latestAssessment?.nextCheckDate
+        ? new Date(b.latestAssessment.nextCheckDate).getTime()
+        : Infinity;
+      if (aNext !== bNext) return aNext - bNext;
+      const aUpdated = a.lastAssessmentAt
+        ? new Date(a.lastAssessmentAt).getTime()
+        : 0;
+      const bUpdated = b.lastAssessmentAt
+        ? new Date(b.lastAssessmentAt).getTime()
+        : 0;
+      return bUpdated - aUpdated;
+    };
+
     if (sortMode === "nextCheck") {
       return list.sort((a, b) => {
         const aDate = a.latestAssessment?.nextCheckDate
@@ -241,12 +268,22 @@ const RecommendationsPanel: React.FC = () => {
         return aDate - bDate;
       });
     }
-    return list.sort(
-      (a, b) =>
-        severityWeight(b.latestAssessment?.severity) -
-        severityWeight(a.latestAssessment?.severity)
-    );
+    return list.sort(byPriority);
   }, [plants, sortMode]);
+
+  const filteredPlants = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return sortedPlants.filter((p) => {
+      const risk = getSeverityFromPlant(p).toLowerCase();
+      if (riskFilter !== "all" && risk !== riskFilter) return false;
+      if (!term) return true;
+      const hay = `${p.plantName || ""} ${p.cropType || ""}`.toLowerCase();
+      return hay.includes(term);
+    });
+  }, [sortedPlants, searchTerm, riskFilter]);
+
+  const featuredPlants = filteredPlants.slice(0, 3);
+  const carouselPlants = filteredPlants.slice(3);
 
   const summary = useMemo(() => {
     const total = plants.length;
@@ -298,103 +335,84 @@ const RecommendationsPanel: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <SummaryChip
-          icon={Leaf}
-          label="Plants monitored"
-          value={summary.total.toString()}
-          tone="emerald"
-        />
-        <SummaryChip
-          icon={AlertTriangle}
-          label="High risk"
-          value={summary.high.toString()}
-          tone="rose"
-        />
-        <SummaryChip
-          icon={Bug}
-          label="Medium risk"
-          value={summary.medium.toString()}
-          tone="amber"
-        />
-        <SummaryChip
-          icon={Clock3}
-          label="Upcoming checks"
-          value={summary.upcoming.toString()}
-          tone="sky"
-        />
+        <SummaryChip icon={Leaf} label="Plants monitored" value={summary.total.toString()} tone="emerald" />
+        <SummaryChip icon={AlertTriangle} label="High risk" value={summary.high.toString()} tone="rose" />
+        <SummaryChip icon={Bug} label="Medium risk" value={summary.medium.toString()} tone="amber" />
+        <SummaryChip icon={Clock3} label="Upcoming checks" value={summary.upcoming.toString()} tone="sky" />
       </div>
 
       {loading && <CardSkeleton />}
       {error && <p className="text-sm text-rose-600">{error}</p>}
 
-      {!loading && plants.length === 0 && !error && (
-        <EmptyState onAction={() => navigate("/chat")} />
+      {!loading && plants.length === 0 && !error && <EmptyState onAction={() => navigate("/chat")} />}
+
+      {/* Featured top plants + controls */}
+      {!loading && filteredPlants.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-slate-700">Highlighted plants (top 3 by risk and urgency)</p>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Search plants..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="text-sm bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+            />
+            <div className="flex gap-1">
+              {["all", "high", "medium", "low"].map((risk) => (
+                <button
+                  key={risk}
+                  onClick={() => setRiskFilter(risk as any)}
+                  className={`px-3 py-1.5 text-xs rounded-full border transition ${
+                    riskFilter === risk
+                      ? "bg-emerald-600 text-white border-emerald-600"
+                      : "bg-white text-slate-700 border-slate-200 hover:border-emerald-200"
+                  }`}
+                >
+                  {risk === "all" ? "All" : risk[0].toUpperCase() + risk.slice(1)}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowAll(true)}
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg hover:bg-emerald-100 transition"
+            >
+              View all
+              <ArrowUpRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {sortedPlants.map((plant) => {
+      <div className="grid gap-4 md:grid-cols-3">
+        {featuredPlants.map((plant) => {
           const severity = getSeverityFromPlant(plant);
           const Icon = severityIcon(severity);
           const priority = severity || "low";
-          const title =
-            plant.plantName ||
-            (plant.cropType ? `${plant.cropType} Plant` : "Plant");
-          const description =
-            plant.latestAssessment?.recommendation ||
-            plant.latestAssessment?.diseasePrediction ||
-            "No recommendations yet. Upload an image to start monitoring.";
-          const time = formatTime(
-            plant.lastAssessmentAt || plant.latestAssessment?.createdAt
-          );
-          const nextCheck = formatShortDate(
-            plant.latestAssessment?.nextCheckDate
-          );
+          const title = plant.plantName || (plant.cropType ? `${plant.cropType} Plant` : "Plant");
+          const nextCheck = formatShortDate(plant.latestAssessment?.nextCheckDate);
           const trend = plant.latestAssessment?.conditionTrend || "monitoring";
           const trendLabel =
-            trend === "worsening"
-              ? "Worsening"
-              : trend === "improving"
-              ? "Improving"
-              : trend === "stable"
-              ? "Stable"
-              : "Monitoring";
+            trend === "worsening" ? "Worsening" : trend === "improving" ? "Improving" : trend === "stable" ? "Stable" : "Monitoring";
           const score = plant.latestAssessment ? healthScore(plant) : 0;
-          const isExpanded = expandedId === plant.id;
 
           return (
-            <div
-              key={plant.id}
-              className={`group border rounded-2xl p-4 bg-white shadow-sm hover:shadow-md transition-all ${getPriorityColor(
-                priority
-              )}`}
-            >
-              <div className="flex gap-3 mb-3">
-                <div className="h-14 w-14 rounded-xl overflow-hidden border border-white bg-slate-100 flex-shrink-0">
+            <div key={plant.id} className="group border border-gray-100 rounded-2xl p-4 bg-white shadow-sm hover:shadow-md transition-all">
+              <div className="flex gap-3 mb-3 items-center">
+                <div className="h-14 w-14 rounded-xl overflow-hidden border border-slate-100 bg-slate-50 flex-shrink-0">
                   {plant.profileImage ? (
-                    <img
-                      src={plant.profileImage}
-                      alt={title}
-                      className="h-full w-full object-cover"
-                    />
+                    <img src={plant.profileImage} alt={title} className="h-full w-full object-cover" />
                   ) : (
-                    <div
-                      className={`h-full w-full flex items-center justify-center ${getIconColor(
-                        priority
-                      )} bg-white`}
-                    >
+                    <div className={`h-full w-full flex items-center justify-center ${getIconColor(priority)} bg-white`}>
                       <Icon className="h-5 w-5" />
                     </div>
                   )}
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <div className="space-y-0.5">
-                      <h3 className="font-semibold text-slate-900 leading-tight">
-                        {title}
-                      </h3>
-                      <p className="text-xs text-slate-500">
-                        {plant.cropType}{time ? ` • ${time}` : ""}
-                      </p>
+                      <h3 className="font-semibold text-slate-900 leading-tight truncate">{title}</h3>
+                      <p className="text-xs text-slate-500 truncate">{plant.cropType || "Crop"} {nextCheck ? `• Next check ${nextCheck}` : ""}</p>
                     </div>
                     <SeverityBadge severity={priority} />
                   </div>
@@ -411,53 +429,233 @@ const RecommendationsPanel: React.FC = () => {
                 </div>
               )}
 
-              {plant.latestAssessment?.careActions && plant.latestAssessment.careActions.length > 0 && (
-                <div className="bg-white/70 rounded-xl border border-slate-100 p-3 space-y-2 mt-2">
-                  <p className="text-xs font-semibold text-slate-700">Recommended actions</p>
-                  <ul className="space-y-1.5">
-                    {plant.latestAssessment.careActions.slice(0, 3).map((action, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-sm text-slate-800">
-                        <span className="text-emerald-500 mt-0.5">•</span>
-                        <span className="leading-relaxed">{action}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              <div className="space-y-1.5 text-sm text-slate-700">
+                {(plant.latestAssessment?.careActions || []).slice(0, 2).map((action, idx) => (
+                  <div key={idx} className="flex items-start gap-2">
+                    <span className="text-emerald-500 mt-0.5">•</span>
+                    <span className="leading-relaxed">{action}</span>
+                  </div>
+                ))}
+              </div>
 
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-4 flex gap-2">
                 <ActionButton
                   label="Open chat"
                   icon={MessageCircle}
-                  onClick={() =>
-                    handleOpenChat(
-                      plant.id,
-                      plant.latestSessionKey || plant.linkedChatId
-                    )
-                  }
+                  onClick={() => handleOpenChat(plant.id, plant.latestSessionKey || plant.linkedChatId)}
                 />
                 <ActionButton
                   label="Upload image"
                   icon={ImageIcon}
-                  onClick={() =>
-                    handleOpenChat(
-                      plant.id,
-                      plant.latestSessionKey || plant.linkedChatId,
-                      true
-                    )
-                  }
-                />
-                <ActionButton
-                  label="Mark treated"
-                  icon={CheckCircle2}
-                  onClick={() => handleMarkTreated(plant.id)}
-                  tone="emerald"
+                  onClick={() => handleOpenChat(plant.id, plant.latestSessionKey || plant.linkedChatId, true)}
                 />
               </div>
             </div>
           );
         })}
       </div>
+
+      {carouselPlants.length > 0 && (
+        <div className="mt-2 bg-white border border-gray-100 rounded-2xl shadow-sm p-3">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-semibold text-slate-800">More plants</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => carouselRef.current?.scrollBy({ left: -320, behavior: "smooth" })}
+                className="w-9 h-9 rounded-full border border-gray-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 bg-white shadow-sm"
+                aria-label="Scroll left"
+              >
+                ‹
+              </button>
+              <button
+                onClick={() => carouselRef.current?.scrollBy({ left: 320, behavior: "smooth" })}
+                className="w-9 h-9 rounded-full border border-gray-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 bg-white shadow-sm"
+                aria-label="Scroll right"
+              >
+                ›
+              </button>
+            </div>
+          </div>
+          <div ref={carouselRef} className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-200">
+            {carouselPlants.map((plant) => {
+              const severity = getSeverityFromPlant(plant);
+              const Icon = severityIcon(severity);
+              const priority = severity || "low";
+              const title = plant.plantName || (plant.cropType ? `${plant.cropType} Plant` : "Plant");
+              const nextCheck = formatShortDate(plant.latestAssessment?.nextCheckDate);
+              const trend = plant.latestAssessment?.conditionTrend || "monitoring";
+              const trendLabel =
+                trend === "worsening" ? "Worsening" : trend === "improving" ? "Improving" : trend === "stable" ? "Stable" : "Monitoring";
+
+              return (
+                <div key={plant.id} className="min-w-[240px] border border-gray-100 rounded-2xl bg-white p-3 shadow-sm hover:shadow-md transition-all flex flex-col gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-xl overflow-hidden border border-slate-100 bg-slate-50 flex-shrink-0">
+                      {plant.profileImage ? (
+                        <img src={plant.profileImage} alt={title} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className={`h-full w-full flex items-center justify-center ${getIconColor(priority)} bg-white`}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-900 truncate">{title}</p>
+                      <p className="text-[11px] text-slate-500 truncate">
+                        {plant.cropType || "Crop"} {nextCheck ? `• Next ${nextCheck}` : ""}
+                      </p>
+                    </div>
+                    <SeverityBadge severity={priority} />
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                    <TrendBadge trend={trendLabel} />
+                    {nextCheck && <NextCheckBadge date={nextCheck} />}
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <ActionButton
+                      label="Chat"
+                      icon={MessageCircle}
+                      onClick={() => handleOpenChat(plant.id, plant.latestSessionKey || plant.linkedChatId)}
+                    />
+                    <ActionButton
+                      label="Image"
+                      icon={ImageIcon}
+                      onClick={() => handleOpenChat(plant.id, plant.latestSessionKey || plant.linkedChatId, true)}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {showAll && (
+        <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className="w-full max-w-6xl max-h-[85vh] bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-white via-emerald-50/60 to-white">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-emerald-600 font-semibold">All Plants</p>
+                <h3 className="text-xl font-bold text-slate-900">Monitored plants</h3>
+              </div>
+              <button
+                onClick={() => setShowAll(false)}
+                className="w-9 h-9 rounded-full border border-gray-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 bg-white shadow-sm"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="px-6 py-4 border-b border-gray-100 flex flex-wrap gap-3 items-center">
+              <div className="flex-1 min-w-[240px]">
+                <input
+                  type="text"
+                  placeholder="Search by name or crop..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full text-sm bg-white border border-slate-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                />
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {["all", "high", "medium", "low"].map((risk) => (
+                  <button
+                    key={risk}
+                    onClick={() => setRiskFilter(risk as any)}
+                    className={`px-3 py-1.5 text-xs rounded-full border transition ${
+                      riskFilter === risk
+                        ? "bg-emerald-600 text-white border-emerald-600"
+                        : "bg-white text-slate-700 border-slate-200 hover:border-emerald-200"
+                    }`}
+                  >
+                    {risk === "all" ? "All risks" : risk[0].toUpperCase() + risk.slice(1) + " risk"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-4 bg-slate-50/60">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredPlants.length === 0 && (
+                  <div className="col-span-full text-center text-slate-500 text-sm py-8">No plants found. Adjust filters or search.</div>
+                )}
+                {filteredPlants.map((plant) => {
+                  const severity = getSeverityFromPlant(plant);
+                  const Icon = severityIcon(severity);
+                  const priority = severity || "low";
+                  const title = plant.plantName || (plant.cropType ? `${plant.cropType} Plant` : "Plant");
+                  const description =
+                    plant.latestAssessment?.recommendation ||
+                    plant.latestAssessment?.diseasePrediction ||
+                    "No recommendations yet. Upload an image to start monitoring.";
+                  const nextCheck = formatShortDate(plant.latestAssessment?.nextCheckDate);
+                  const trend = plant.latestAssessment?.conditionTrend || "monitoring";
+                  const trendLabel =
+                    trend === "worsening" ? "Worsening" : trend === "improving" ? "Improving" : trend === "stable" ? "Stable" : "Monitoring";
+                  const score = plant.latestAssessment ? healthScore(plant) : 0;
+
+                  return (
+                    <div key={plant.id} className="group border border-gray-100 rounded-2xl p-4 bg-white shadow-sm hover:shadow-md transition-all flex flex-col gap-3">
+                      <div className="flex gap-3 items-start">
+                        <div className="h-14 w-14 rounded-xl overflow-hidden border border-slate-100 bg-slate-50 flex-shrink-0">
+                          {plant.profileImage ? (
+                            <img src={plant.profileImage} alt={title} className="h-full w-full object-cover" />
+                          ) : (
+                            <div className={`h-full w-full flex items-center justify-center ${getIconColor(priority)} bg-white`}>
+                              <Icon className="h-5 w-5" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="space-y-0.5">
+                              <h3 className="font-semibold text-slate-900 leading-tight truncate">{title}</h3>
+                              <p className="text-xs text-slate-500 truncate">
+                                {plant.cropType || "Crop"} {nextCheck ? `• Next ${nextCheck}` : ""}
+                              </p>
+                            </div>
+                            <SeverityBadge severity={priority} />
+                          </div>
+                          <div className="flex items-center gap-2 mt-2 flex-wrap text-xs">
+                            <TrendBadge trend={trendLabel} />
+                            {nextCheck && <NextCheckBadge date={nextCheck} />}
+                          </div>
+                        </div>
+                      </div>
+
+                      {score > 0 && (
+                        <div className="flex items-center gap-3">
+                          <HealthMeter score={score} />
+                        </div>
+                      )}
+
+                      <p className="text-sm text-slate-700 line-clamp-2">{truncate(description, 160)}</p>
+
+                      <div className="flex flex-wrap gap-2">
+                        <ActionButton
+                          label="Open chat"
+                          icon={MessageCircle}
+                          onClick={() => handleOpenChat(plant.id, plant.latestSessionKey || plant.linkedChatId)}
+                        />
+                        <ActionButton
+                          label="Upload image"
+                          icon={ImageIcon}
+                          onClick={() => handleOpenChat(plant.id, plant.latestSessionKey || plant.linkedChatId, true)}
+                        />
+                        <ActionButton
+                          label="Mark treated"
+                          icon={CheckCircle2}
+                          onClick={() => handleMarkTreated(plant.id)}
+                          tone="emerald"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirmPlantId && (
         <ConfirmModal
