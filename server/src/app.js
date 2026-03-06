@@ -14,7 +14,7 @@ import { notFound, errorHandler } from "./middleware/errorHandler.js";
 dotenv.config();
 const app = express();
 
-const allowedOrigins = ["http://localhost:3000", "https://green-grow-zeta.vercel.app"];
+const allowedOrigins = ["http://localhost:3000", "https://green-grow-zeta.vercel.app", "http://localhost:5173"];
 
 // Robust CORS configuration for dev
 const corsOptions = {

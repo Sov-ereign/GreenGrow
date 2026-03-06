@@ -1,6 +1,12 @@
-import { useState } from 'react';
-import { Upload, Camera, Leaf, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { RefreshCw, Sparkles } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { GROQ_API_KEY } from "@/lib/env";
+import { ImageUploader } from '@/components/disease/ImageUploader';
+import { PredictionResult } from '@/components/disease/PredictionResult';
+import { ConfidenceIndicator } from '@/components/disease/ConfidenceIndicator';
+import { RecommendationPanel } from '@/components/disease/RecommendationPanel';
+import { InfoPanel } from '@/components/disease/InfoPanel';
 
 export default function DiseasePredictionPage() {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -10,58 +16,43 @@ export default function DiseasePredictionPage() {
         disease: string;
         confidence: number;
         description: string;
+        causativeFactors?: string;
+        impactOnYield?: string;
+        biologicalProgression?: string;
+        optimalEnvironment?: string;
+        immediateActions?: string[];
         treatment: string[];
     } | null>(null);
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            console.log('Selected file:', file);
-            setSelectedFile(file);
+    const resultSectionRef = useRef<HTMLDivElement>(null);
 
-            const fileReader = new FileReader();
-            fileReader.onload = (e) => {
-                setPreviewUrl(e.target?.result as string);
-            };
-            fileReader.readAsDataURL(file);
-            setResult(null);
-        }
+    const handleImageSelect = (file: File) => {
+        setSelectedFile(file);
+        const fileReader = new FileReader();
+        fileReader.onload = (e) => {
+            setPreviewUrl(e.target?.result as string);
+        };
+        fileReader.readAsDataURL(file);
+        setResult(null);
     };
 
-    const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-        event.preventDefault();
-    };
-
-    const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
-        event.preventDefault();
-        const file = event.dataTransfer.files?.[0];
-        if (file) {
-            console.log('Dropped file:', file);
-            setSelectedFile(file);
-
-            const fileReader = new FileReader();
-            fileReader.onload = (e) => {
-                setPreviewUrl(e.target?.result as string);
-            };
-            fileReader.readAsDataURL(file);
-            setResult(null);
-        }
-    };
-
-    const fetchGroqTreatment = async (disease: string) => {
+    const fetchGroqAnalysis = async (disease: string) => {
         const apiKey = GROQ_API_KEY;
-        const prompt = `Provide a concise description (1-2 sentences) of the plant disease "${disease}" and suggest exactly 3 bullet point treatments. Format the response as:
-Description: [Your description]
-Treatments:
-- [Treatment 1]
-- [Treatment 2]
-- [Treatment 3]`;
+        const prompt = `Analyze the plant disease "${disease}" and provide a structured JSON response for an agricultural dashboard.
+JSON should include:
+{
+  "description": "2-3 sentences max",
+  "causativeFactors": "Briefly list environmental/pathogenic causes",
+  "impactOnYield": "Estimated percentage and type of impact",
+  "biologicalProgression": "How the disease spreads on the plant",
+  "optimalEnvironment": "Conditions that favor the disease",
+  "immediateActions": ["Action 1", "Action 2", "Action 3"],
+  "treatments": ["Treatment 1", "Treatment 2", "Treatment 3"]
+}
+Ensure the response is ONLY the JSON object.`;
 
         try {
-            if (!apiKey) {
-                throw new Error("Groq API key is missing");
-            }
-            console.log('Sending request to Groq API for disease:', disease);
+            if (!apiKey) throw new Error("Groq API key is missing");
             const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                 method: 'POST',
                 headers: {
@@ -69,108 +60,76 @@ Treatments:
                     'Authorization': `Bearer ${apiKey}`,
                 },
                 body: JSON.stringify({
-                    model: 'meta-llama/llama-guard-4-12b',
-                    messages: [
-                        {
-                            role: 'user',
-                            content: prompt,
-                        },
-                    ],
+                    model: 'llama-3.3-70b-versatile',
+                    messages: [{ role: 'user', content: prompt }],
                     temperature: 0.7,
-                    max_tokens: 512,
+                    max_tokens: 1024,
+                    response_format: { type: "json_object" }
                 }),
             });
 
-            console.log('Groq API response status:', response.status);
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Groq API error:', errorText);
-                throw new Error(`Groq API request failed with status ${response.status}: ${errorText}`);
-            }
-
+            if (!response.ok) throw new Error(`Groq API request failed`);
             const data = await response.json();
-            console.log('Groq API response data:', data);
-
-            const text = data.choices?.[0]?.message?.content;
-
-            if (!text) {
-                throw new Error('No valid response from Groq API');
-            }
-
-            // Parse the response
-            const descriptionMatch = text.match(/Description: (.*?)\nTreatments:/s);
-            const treatmentsMatch = text.match(/- (.*?)(?:\n- (.*?))?(?:\n- (.*?))?$/s);
+            const analysis = JSON.parse(data.choices?.[0]?.message?.content || '{}');
 
             return {
-                description: descriptionMatch ? descriptionMatch[1].trim() : 'No description available.',
-                treatments: treatmentsMatch ? treatmentsMatch.slice(1).filter(t => t).map(t => t.trim()) : []
+                description: analysis.description || 'No description available.',
+                causativeFactors: analysis.causativeFactors,
+                impactOnYield: analysis.impactOnYield,
+                biologicalProgression: analysis.biologicalProgression,
+                optimalEnvironment: analysis.optimalEnvironment,
+                immediateActions: analysis.immediateActions || [],
+                treatments: analysis.treatments || []
             };
         } catch (error) {
-            console.error('Error fetching from Groq API:', error);
+            console.error('Error fetching Groq analysis:', error);
             return {
-                description: 'Unable to fetch description.',
+                description: 'Unable to fetch detailed analysis. Please check your internet connection and try again.',
+                causativeFactors: 'Data unavailable',
+                impactOnYield: 'Data unavailable',
+                biologicalProgression: 'Data unavailable',
+                optimalEnvironment: 'Data unavailable',
+                immediateActions: ['Check plant isolation', 'Monitor environmental conditions'],
                 treatments: ['Consult a local agricultural expert for treatment options.']
             };
         }
     };
 
     const handleAnalyze = async () => {
-        if (!selectedFile) {
-            console.error('No file selected');
-            setResult({
-                disease: 'Error',
-                confidence: 0,
-                description: 'Please upload an image to analyze.',
-                treatment: ['Select an image and try again.']
-            });
-            setIsAnalyzing(false);
-            return;
-        }
-
+        if (!selectedFile) return;
         setIsAnalyzing(true);
 
         try {
-            // Create FormData and append file
             const formData = new FormData();
             formData.append('image', selectedFile);
 
-            // Debug FormData content
-            console.log('FormData content:');
-            for (const [key, value] of formData.entries()) {
-                console.log(`${key}:`, value);
-            }
-
-            // Call the disease prediction API
-            console.log('Sending request to prediction API...');
             const predictionResponse = await fetch('https://render-begins-musharraf.onrender.com/predict', {
                 method: 'POST',
                 body: formData,
             });
 
-            console.log('Prediction API response status:', predictionResponse.status);
-
-            if (!predictionResponse.ok) {
-                const errorText = await predictionResponse.text();
-                console.error('Prediction API error:', errorText);
-                throw new Error(`API request failed with status ${predictionResponse.status}: ${errorText}`);
-            }
-
+            if (!predictionResponse.ok) throw new Error(`API request failed`);
             const predictionData = await predictionResponse.json();
-            console.log('Prediction API response data:', predictionData);
-
             const disease = predictionData.prediction || 'Unknown Disease';
-
-            // Fetch treatment recommendations from Groq API
-            const { description, treatments } = await fetchGroqTreatment(disease);
+            const analysis = await fetchGroqAnalysis(disease);
 
             setResult({
                 disease,
                 confidence: predictionData.confidence || 90,
-                description,
-                treatment: treatments
+                description: analysis.description,
+                causativeFactors: analysis.causativeFactors,
+                impactOnYield: analysis.impactOnYield,
+                biologicalProgression: analysis.biologicalProgression,
+                optimalEnvironment: analysis.optimalEnvironment,
+                immediateActions: analysis.immediateActions,
+                treatment: analysis.treatments
             });
-            console.log('Setting result:', { disease, confidence: predictionData.confidence || 90, description, treatment: treatments });
+
+            // Scroll to results
+            setTimeout(() => {
+                resultSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+
         } catch (error) {
             console.error('Error during analysis:', error);
             setResult({
@@ -191,233 +150,142 @@ Treatments:
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
-            <div className="max-w-5xl mx-auto p-6">
-                {/* Header */}
-                <div className="text-center py-8">
-                    <div className="inline-flex items-center justify-center mb-3">
-                        <Leaf className="text-green-600 mr-2" size={32} />
-                        <h1 className="text-5xl font-bold text-gray-800">Disease Prediction</h1>
-                    </div>
-                    <p className="mt-3 text-lg text-green-700 font-medium">
-                        Identify plant diseases instantly by uploading images and receive treatment recommendations
-                    </p>
-                    <div className="h-1 w-24 bg-gradient-to-r from-green-400 to-green-600 mx-auto mt-6 rounded-full"></div>
+        <div className="min-h-screen bg-white">
+            {/* Header / Hero Section */}
+            <div className="relative bg-slate-900 overflow-hidden border-b border-white/5">
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20" />
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full">
+                    <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-green-500/20 blur-[120px] rounded-full" />
+                    <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/10 blur-[120px] rounded-full" />
                 </div>
 
-                <div className="grid md:grid-cols-5 gap-8">
-                    {/* Left column - Upload section */}
-                    <div className="md:col-span-3">
-                        <div className="bg-white rounded-xl shadow-lg p-8 mb-8 border border-green-100">
-                            <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-gray-100">
-                                <div className="p-3 bg-green-100 rounded-full">
-                                    <Camera className="text-green-600" size={24} />
-                                </div>
-                                <div>
-                                    <h2 className="text-2xl font-semibold text-gray-800">Upload Plant Image</h2>
-                                    <p className="text-green-600">Supported formats: JPG, PNG, WEBP</p>
-                                </div>
-                            </div>
-
-                            <div
-                                className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 ${previewUrl
-                                    ? 'border-green-400 bg-green-50'
-                                    : 'border-gray-300 hover:border-green-400 hover:bg-green-50'
-                                    }`}
-                                onDragOver={handleDragOver}
-                                onDrop={handleDrop}
-                                onClick={() => document.getElementById('fileInput')?.click()}
-                            >
-                                {previewUrl ? (
-                                    <div className="w-full flex flex-col items-center">
-                                        <div className="relative w-full max-w-md mb-4">
-                                            <img
-                                                src={previewUrl}
-                                                alt="Plant preview"
-                                                className="max-h-64 w-full object-contain rounded-lg shadow-md"
-                                            />
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    resetForm();
-                                                }}
-                                                className="absolute -top-3 -right-3 bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-1"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                                                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                        <div className="flex items-center bg-gray-100 px-3 py-1 rounded-full">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-gray-500">
-                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                                <polyline points="14 2 14 8 20 8"></polyline>
-                                            </svg>
-                                            <span className="text-sm text-gray-600 font-medium">{selectedFile?.name}</span>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="text-center py-8">
-                                        <div className="bg-green-100 rounded-full p-4 mx-auto mb-4 w-16 h-16 flex items-center justify-center">
-                                            <Upload className="h-8 w-8 text-green-600" />
-                                        </div>
-                                        <p className="text-gray-700 font-medium mb-2">Drag and drop your plant image here</p>
-                                        <p className="text-gray-500 text-sm">or click to browse files</p>
-                                    </div>
-                                )}
-                                <input
-                                    id="fileInput"
-                                    type="file"
-                                    accept="image/jpeg,image/png,image/webp"
-                                    className="hidden"
-                                    onChange={handleFileChange}
-                                />
-                            </div>
-
-                            <button
-                                onClick={handleAnalyze}
-                                disabled={!selectedFile || isAnalyzing}
-                                className={`w-full mt-6 p-4 rounded-lg text-white font-medium flex items-center justify-center transition-all ${!selectedFile || isAnalyzing
-                                    ? 'bg-green-400 cursor-not-allowed'
-                                    : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-md hover:shadow-lg'
-                                    }`}
-                            >
-                                {isAnalyzing ? (
-                                    <>
-                                        <RefreshCw className="animate-spin mr-2" size={20} />
-                                        Analyzing Image...
-                                    </>
-                                ) : (
-                                    <>
-                                        <AlertCircle className="mr-2" size={20} />
-                                        Analyze Image
-                                    </>
-                                )}
-                            </button>
+                <div className="relative max-w-7xl mx-auto px-6 pt-12 pb-24 text-center">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex flex-col items-center"
+                    >
+                        <div className="flex items-center gap-4 mb-8 bg-white/5 border border-white/10 px-6 py-2 rounded-full backdrop-blur-md">
+                            <Sparkles className="text-amber-400 w-5 h-5" />
+                            <span className="text-white/80 text-sm font-bold uppercase tracking-[0.2em]">AI Powered Plant Diagnostic</span>
                         </div>
-                    </div>
 
-                    {/* Right column - Results */}
-                    <div className="md:col-span-2">
-                        {result ? (
-                            <div className="bg-white rounded-xl shadow-lg p-6 mb-8 border border-green-100">
-                                <div className="flex items-center space-x-3 mb-6 pb-3 border-b border-gray-100">
-                                    <div className="p-2 bg-green-100 rounded-full">
-                                        <CheckCircle className="text-green-600" size={20} />
-                                    </div>
-                                    <h2 className="text-xl font-semibold text-gray-800">Analysis Result</h2>
-                                </div>
-                                <div className="mb-4">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <h3 className="font-medium text-gray-700">Detected Issue:</h3>
-                                        <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">{result.disease}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h3 className="font-medium text-gray-700">Confidence:</h3>
-                                        <div className="flex items-center">
-                                            <div className="w-24 bg-gray-200 rounded-full h-2.5 mr-2">
-                                                <div className="bg-green-600 h-2.5 rounded-full" style={{ width: `${result.confidence}%` }}></div>
-                                            </div>
-                                            <span className="text-sm font-medium text-gray-700">{result.confidence}%</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded">
-                                    <h3 className="font-medium text-gray-800 mb-2">Disease Description:</h3>
-                                    <p className="text-gray-700 text-sm mb-2">{result.description}</p>
-                                    <h3 className="font-medium text-gray-800 mb-2">Recommended Treatment:</h3>
-                                    <ul className="text-gray-700 text-sm leading-relaxed list-disc pl-5">
-                                        {result.treatment.map((treatment, index) => (
-                                            <li key={index}>{treatment}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                                <button
-                                    onClick={resetForm}
-                                    className="w-full mt-6 p-3 rounded-lg border border-green-500 text-green-600 hover:bg-green-50 font-medium flex items-center justify-center"
-                                >
-                                    <RefreshCw size={16} className="mr-2" />
-                                    Analyze Another Plant
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="bg-white rounded-xl shadow-lg p-6 mb-8 border border-green-100">
-                                <div className="flex items-center space-x-3 mb-4 pb-3 border-b border-gray-100">
-                                    <div className="p-2 bg-green-100 rounded-full">
-                                        <AlertCircle className="text-green-600" size={20} />
-                                    </div>
-                                    <h2 className="text-xl font-semibold text-gray-800">How It Works</h2>
-                                </div>
-                                <div className="space-y-4">
-                                    <div className="flex items-start">
-                                        <div className="flex-shrink-0 bg-green-100 rounded-full h-6 w-6 flex items-center justify-center mt-0.5">
-                                            <span className="text-green-600 font-medium text-sm">1</span>
-                                        </div>
-                                        <div className="ml-3">
-                                            <p className="text-gray-700">Upload a clear image of the affected plant part</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start">
-                                        <div className="flex-shrink-0 bg-green-100 rounded-full h-6 w-6 flex items-center justify-center mt-0.5">
-                                            <span className="text-green-600 font-medium text-sm">2</span>
-                                        </div>
-                                        <div className="ml-3">
-                                            <p className="text-gray-700">Click analyze to process the image</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start">
-                                        <div className="flex-shrink-0 bg-green-100 rounded-full h-6 w-6 flex items-center justify-center mt-0.5">
-                                            <span className="text-green-600 font-medium text-sm">3</span>
-                                        </div>
-                                        <div className="ml-3">
-                                            <p className="text-gray-700">Get instant disease detection and treatment advice</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                        <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-8 leading-[0.9]">
+                            Smart <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500">Plant Care</span>
+                        </h1>
 
-                        <div className="bg-white rounded-xl shadow-lg p-6 border border-green-100">
-                            <div className="flex items-center space-x-3 mb-4 pb-3 border-b border-gray-100">
-                                <div className="p-2 bg-green-100 rounded-full">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600">
-                                        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
-                                    </svg>
-                                </div>
-                                <h2 className="text-xl font-semibold text-gray-800">Recent Detections</h2>
-                            </div>
-                            <div className="space-y-3">
-                                {[
-                                    { plantType: "Tomato", disease: "Early Blight", date: "April 15, 2025", status: "treated" },
-                                    { plantType: "Potato", disease: "Late Blight", date: "April 12, 2025", status: "monitoring" },
-                                    { plantType: "Apple", disease: "Cedar Apple Rust", date: "April 10, 2025", status: "treated" }
-                                ].map((item, index) => (
-                                    <div key={index} className="flex items-center p-3 border border-gray-100 rounded-lg hover:bg-green-50 transition-colors cursor-pointer">
-                                        <div className={`w-2 h-10 mr-3 rounded-full ${item.status === 'treated' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                                        <div className="bg-green-100 p-2 rounded-full mr-3">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600">
-                                                <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
-                                            </svg>
-                                        </div>
-                                        <div className="flex-grow">
-                                            <p className="font-medium text-gray-800">{item.plantType}</p>
-                                            <p className="text-sm text-gray-500">{item.disease}</p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-xs text-gray-500">{item.date}</p>
-                                            <span className={`text-xs px-2 py-0.5 rounded-full ${item.status === 'treated' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                                                }`}>
-                                                {item.status === 'treated' ? 'Treated' : 'Monitoring'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
+                        <p className="max-w-2xl text-xl text-slate-400 font-medium leading-relaxed mx-auto">
+                            Identify crop diseases with high-precision AI. Upload a photo and receive instant treatment protocols.
+                        </p>
+                    </motion.div>
                 </div>
             </div>
+
+            {/* Main Content Area */}
+            <div className="relative -mt-16 pb-24 px-6">
+                <div className="max-w-7xl mx-auto space-y-12">
+                    {/* Uploader Section */}
+                    <div className="relative z-20">
+                        <ImageUploader
+                            onImageSelect={handleImageSelect}
+                            previewUrl={previewUrl}
+                            onClear={resetForm}
+                        />
+
+                        {/* Action Button */}
+                        <AnimatePresence>
+                            {selectedFile && !result && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.9 }}
+                                    className="flex justify-center mt-8"
+                                >
+                                    <button
+                                        onClick={handleAnalyze}
+                                        disabled={isAnalyzing}
+                                        className="relative group bg-slate-900 text-white px-12 py-5 rounded-2xl font-black text-xl shadow-2xl overflow-hidden active:scale-95 transition-all"
+                                    >
+                                        <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <div className="relative flex items-center gap-3">
+                                            {isAnalyzing ? (
+                                                <RefreshCw className="animate-spin" size={24} />
+                                            ) : (
+                                                <Sparkles size={24} className="text-amber-400" />
+                                            )}
+                                            {isAnalyzing ? 'Processing Specimen...' : 'Start AI Analysis'}
+                                        </div>
+                                    </button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* Analysis Result Container */}
+                    <AnimatePresence>
+                        {result && (
+                            <motion.div
+                                ref={resultSectionRef}
+                                initial={{ opacity: 0, y: 40 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="space-y-12 pt-12 border-t border-slate-100"
+                            >
+                                {/* Top Layout: Result + Confidence */}
+                                <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                                    <div className="lg:col-span-3">
+                                        <PredictionResult
+                                            disease={result.disease}
+                                            confidence={result.confidence}
+                                        />
+                                    </div>
+                                    <div className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-xl shadow-slate-200/50 border border-slate-100 flex items-center">
+                                        <ConfidenceIndicator confidence={result.confidence} />
+                                    </div>
+                                </div>
+
+                                {/* Knowledge Section */}
+                                <div className="bg-slate-50/50 rounded-[48px] p-4 border border-slate-100">
+                                    <div className="bg-white rounded-[40px] p-12 shadow-2xl shadow-slate-200/20">
+                                        <InfoPanel
+                                            description={result.description}
+                                            causativeFactors={result.causativeFactors}
+                                            impactOnYield={result.impactOnYield}
+                                            biologicalProgression={result.biologicalProgression}
+                                            optimalEnvironment={result.optimalEnvironment}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Advisory Section */}
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-4 px-4">
+                                        <div className="w-1.5 h-8 bg-green-500 rounded-full" />
+                                        <h2 className="text-3xl font-black text-slate-900 tracking-tight">Agricultural Advisory</h2>
+                                    </div>
+                                    <RecommendationPanel
+                                        treatments={result.treatment}
+                                        immediateActions={result.immediateActions}
+                                    />
+                                </div>
+
+                                {/* Reset Action */}
+                                <div className="flex justify-center pt-8">
+                                    <button
+                                        onClick={resetForm}
+                                        className="flex items-center gap-3 px-8 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-2xl transition-all"
+                                    >
+                                        <RefreshCw size={20} />
+                                        Analyze Another Sample
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            </div>
+
+            {/* Footer Decorative Element */}
+            <div className="h-24 bg-gradient-to-b from-white to-slate-50" />
         </div>
     );
 }
