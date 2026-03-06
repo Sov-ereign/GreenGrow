@@ -71,7 +71,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   ];
 
   return (
-    <div className="w-64 bg-white shadow-lg md:rounded-2xl md:m-4 p-6 h-full overflow-y-auto">
+    <div className="w-64 bg-white shadow-lg md:rounded-2xl md:m-4 p-6 h-full md:h-[calc(100vh-2rem)] md:sticky md:top-4 overflow-y-auto flex flex-col">
       {/* Mobile Close Button */}
       <div className="flex items-center justify-between mb-4 md:mb-8">
         <div className="flex items-center space-x-3">

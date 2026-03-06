@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Volume2, VolumeX, Settings, Volume1 } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, Settings, Volume1, Bot, User, Leaf, Sprout, Send, ImageIcon, ChevronDown, Scan, X as XIcon } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { GROQ_API_KEY, ELEVENLABS_API_KEY, apiUrl } from "@/lib/env";
 import { useAuth } from "../context/AuthContext";
@@ -190,10 +190,15 @@ const getInitialElevenLabsEnabled = () => {
 
 interface ChatInterfaceProps {
   initialSessionId?: string | null;
+  initialPlantId?: string | null;
   onSessionChange?: (sessionId: string | null) => void;
 }
 
-export default function AgriSmartAssistant({ initialSessionId = null, onSessionChange }: ChatInterfaceProps) {
+export default function AgriSmartAssistant({
+  initialSessionId = null,
+  initialPlantId = null,
+  onSessionChange,
+}: ChatInterfaceProps) {
 
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([
@@ -220,8 +225,8 @@ export default function AgriSmartAssistant({ initialSessionId = null, onSessionC
   const imageObjectUrlsRef = useRef<string[]>([]);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [isImageAnalyzing, setIsImageAnalyzing] = useState(false);
-  const [activePlantId, setActivePlantId] = useState<string | null>(null);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [activePlantId, setActivePlantId] = useState<string | null>(initialPlantId);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(initialSessionId);
 
   useEffect(() => {
     return () => {
@@ -958,39 +963,74 @@ User query: ${input}`;
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-green-50">
-      {/* Header */}
-      <header className="bg-green-500 text-white px-5 py-4 flex justify-between items-center shadow-md">
-        <div className="flex items-center gap-2">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-8 w-8"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M12 4a4 4 0 0 1 4 4a4 4 0 0 1-4 4a4 4 0 0 1-4-4a4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4z" />
-            <path d="M16.5 3.5c1.5 1.5 1.5 4.5 0 6S13 6.5 13 5s2-3 3.5-1.5z" />
-          </svg>
-          <span className="font-bold text-lg">KrishiBot AI Assistant</span>
-        </div>
+    <div className="flex flex-col h-full min-h-0" style={{background: "linear-gradient(135deg, #f0fdf4 0%, #f8fafc 100%)"}}>
+
+      {/* ============================================================ */}
+      {/* HEADER                                                        */}
+      {/* ============================================================ */}
+      <header className="bg-white/90 backdrop-blur-md border-b border-gray-100 px-5 py-3 flex justify-between items-center shadow-sm z-10">
         <div className="flex items-center gap-3">
+          {/* Bot avatar */}
+          <div className="relative">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-md shadow-green-200">
+              <Leaf size={20} className="text-white" />
+            </div>
+            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 border-2 border-white rounded-full" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold text-gray-900">KrishiBot</h2>
+              <span className="text-[10px] font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">AI</span>
+            </div>
+            <p className="text-[11px] text-gray-400 leading-tight">
+              {isSpeaking
+                ? "🔊 Speaking..."
+                : isTyping
+                  ? "✦ Generating response..."
+                  : isListening
+                    ? "🎙 Listening..."
+                    : "Online · Agriculture Expert"}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Plant context chip */}
           {activePlantId && (
-            <span className="hidden md:inline-flex text-xs bg-green-600/80 px-3 py-1 rounded-full">
-              Monitoring active plant
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs bg-green-50 text-green-700 border border-green-200 px-3 py-1.5 rounded-full font-medium">
+              <Sprout size={12} />
+              Plant monitoring active
             </span>
           )}
+
+          {/* Voice output toggle */}
+          <button
+            onClick={toggleVoiceOutput}
+            title={voiceEnabled ? "Mute voice" : "Enable voice"}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+              voiceEnabled
+                ? "bg-purple-50 text-purple-600 hover:bg-purple-100"
+                : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+            }`}
+          >
+            {voiceEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+          </button>
+
+          {/* Settings button */}
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="p-2 rounded-lg bg-green-600 hover:bg-green-700 transition-colors"
+            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+              showSettings ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+            }`}
           >
-            <Settings className="h-4 w-4" />
+            <Settings size={15} />
           </button>
+
+          {/* Language selector */}
           <select
             value={language}
             onChange={handleLanguageChange}
-            className="bg-white text-green-700 border border-green-200 rounded-md px-2 py-1 text-xs focus:outline-none shadow-sm"
+            className="bg-gray-50 text-gray-700 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-green-400/50 cursor-pointer"
           >
             <option value="en">EN</option>
             <option value="bn">BN</option>
@@ -1002,401 +1042,368 @@ User query: ${input}`;
         </div>
       </header>
 
-      {/* Settings Panel */}
+      {/* ============================================================ */}
+      {/* SETTINGS PANEL (slide-down)                                   */}
+      {/* ============================================================ */}
       {showSettings && (
-        <div className="bg-white border-b border-green-200 p-4">
-          <h3 className="font-semibold text-green-800 mb-3">Voice Settings</h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <button
-                onClick={toggleVoiceOutput}
-                className={`p-2 rounded-lg flex items-center gap-2 text-sm ${
-                  voiceEnabled
-                    ? 'bg-green-500 text-white hover:bg-green-600'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                {voiceEnabled ? (
-                  <Volume2 className="h-4 w-4" />
-                ) : (
-                  <VolumeX className="h-4 w-4" />
-                )}
-                <span>
-                  {voiceEnabled
-                    ? 'Voice responses enabled'
-                    : 'Voice responses muted'}
-                </span>
-              </button>
-            </div>
-            <div className="flex items-center gap-3">
+        <div className="bg-white border-b border-gray-100 px-5 py-4 shadow-sm">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Voice Settings</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={toggleVoiceOutput}
+              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                voiceEnabled
+                  ? "bg-green-500 text-white hover:bg-green-600 shadow-sm"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              {voiceEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+              {voiceEnabled ? "Voice on" : "Voice off"}
+            </button>
+
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 id="useElevenLabs"
                 checked={useElevenLabs}
                 onChange={(e) => {
                   const enabled = e.target.checked;
-                  if (typeof window !== 'undefined') {
-                    if (enabled) {
-                      window.localStorage.removeItem(ELEVENLABS_DISABLED_KEY);
-                    } else {
-                      window.localStorage.setItem(ELEVENLABS_DISABLED_KEY, '1');
-                    }
+                  if (typeof window !== "undefined") {
+                    if (enabled) window.localStorage.removeItem(ELEVENLABS_DISABLED_KEY);
+                    else window.localStorage.setItem(ELEVENLABS_DISABLED_KEY, "1");
                   }
                   setUseElevenLabs(enabled);
                 }}
-                className="rounded border-green-300"
+                className="rounded border-gray-300 text-green-500 focus:ring-green-400"
               />
-              <label htmlFor="useElevenLabs" className="text-sm text-green-700">
-                Use ElevenLabs for premium voice quality
-              </label>
-            </div>
-            {useElevenLabs && (
-              <div>
-                <p className="text-xs text-green-600 mt-1 pl-7">
-                  Premium voice enabled via system configuration
-                </p>
-              </div>
-            )}
+              <span className="text-xs text-gray-600">ElevenLabs premium voice</span>
+            </label>
           </div>
         </div>
       )}
 
-      {/* Main Content */}
-      <div className="flex-1 min-h-0 max-w-5xl mx-auto w-full p-4">
-        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl overflow-hidden shadow-sm h-full">
-          <div className="px-5 py-3 border-b border-green-100 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 text-white"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M12 15c-1.85 0-3.35-1.5-3.35-3.35S10.15 8.3 12 8.3s3.35 1.5 3.35 3.35-1.5 3.35-3.35 3.35" />
-                <path d="M15.5 9A7.5 7.5 0 108 16.5" />
-                <path d="M16 8A8 8 0 108 16" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="font-medium text-green-800">KrishiBot AI</h3>
-              <p className="text-xs text-gray-500">
-                {language === 'bn' ? 'খামার-নির্দিষ্ট পরামর্শ'
-                  : language === 'hi' ? 'फार्म-विशिष्ट सिफारिशें'
-                    : language === 'ta' ? 'பண்ணை-குறிப்பிட்ட பரிந்துரைகள்'
-                      : language === 'te' ? 'వ్యవసాయ-నిర్‍దిష్ట సిఫార్సులు'
-                        : language === 'mr' ? 'शेती-विशिष्ट शिफारसी'
-                          : 'Farm-specific recommendations'}
-              </p>
-            </div>
-          </div>
+      {/* ============================================================ */}
+      {/* MESSAGES AREA                                                  */}
+      {/* ============================================================ */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-6">
+        <div className="max-w-2xl mx-auto space-y-2">
 
-          {/* Messages Area */}
-          <div className="flex-1 min-h-0 p-4 overflow-y-auto bg-green-50">
-            <div className="space-y-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[75%] rounded-lg px-4 py-2 ${message.sender === 'user'
-                      ? 'bg-green-500 text-white rounded-br-none'
-                      : 'bg-white border border-green-100 rounded-bl-none shadow-sm'
-                      }`}
+          {/* Empty state / welcome */}
+          {messages.length <= 1 && (
+            <div className="text-center py-8 px-4">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-xl shadow-green-200/60">
+                <Leaf size={30} className="text-white" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-800 mb-1">Ask KrishiBot anything</h3>
+              <p className="text-sm text-gray-400 max-w-xs mx-auto">
+                Get expert advice on crops, diseases, weather, and more — in your language.
+              </p>
+
+              {/* Suggestion chips grid */}
+              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-2 text-left max-w-sm mx-auto">
+                {(farmingSuggestions[language] || farmingSuggestions["en"]).map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => handleSuggestionClick(s.text)}
+                    className="group flex items-start gap-2.5 px-3.5 py-3 bg-white rounded-xl border border-gray-100 hover:border-green-300 hover:shadow-md hover:shadow-green-100/50 transition-all duration-200 text-left"
                   >
-                    {message.type === 'image' && message.imagePreviewUrl && (
-                      <div className="mb-2">
+                    <span className="w-6 h-6 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-green-100 transition-colors">
+                      <Sprout size={13} className="text-green-600" />
+                    </span>
+                    <span className="text-xs text-gray-600 group-hover:text-gray-800 font-medium leading-snug transition-colors">
+                      {s.text}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Messages */}
+          {messages.map((message, idx) => {
+            const isAI = message.sender === "assistant";
+            const prevMsg = messages[idx - 1];
+            const showAvatar = !prevMsg || prevMsg.sender !== message.sender;
+
+            return (
+              <div
+                key={message.id}
+                className={`flex items-end gap-2.5 ${isAI ? "justify-start" : "justify-end"}`}
+              >
+                {/* AI avatar (left) */}
+                {isAI && (
+                  <div className={`flex-shrink-0 mb-1 ${showAvatar ? "opacity-100" : "opacity-0"}`}>
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-md shadow-green-200/40">
+                      <Bot size={15} className="text-white" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Bubble */}
+                <div className={`group max-w-[78%] ${isAI ? "" : "ml-10"}`}>
+                  {/* Sender label */}
+                  {showAvatar && (
+                    <p className={`text-[10px] font-semibold mb-1 px-1 ${isAI ? "text-gray-400" : "text-right text-gray-400"}`}>
+                      {isAI ? "KrishiBot" : "You"}
+                    </p>
+                  )}
+
+                  <div
+                    className={`relative px-4 py-3 text-sm leading-relaxed shadow-sm ${
+                      isAI
+                        ? "bg-white border border-gray-100 text-gray-800 rounded-2xl rounded-tl-sm shadow-gray-200/60"
+                        : "bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-2xl rounded-tr-sm shadow-green-200/50"
+                    }`}
+                  >
+                    {/* Image preview in message */}
+                    {message.type === "image" && message.imagePreviewUrl && (
+                      <div className="mb-3 -mx-1">
                         <img
                           src={message.imagePreviewUrl}
                           alt="Uploaded plant"
-                          className="max-h-52 w-full max-w-xs sm:max-w-sm rounded-md border border-green-100 object-contain bg-white"
+                          className="max-h-52 w-full max-w-xs rounded-xl border border-white/20 object-contain bg-black/5"
                         />
                       </div>
                     )}
-                    {message.sender === 'assistant' ? (
-                      <div className="text-sm prose prose-sm max-w-none">
+
+                    {/* Message text */}
+                    {isAI ? (
+                      <div className="prose prose-sm max-w-none prose-p:mb-2 prose-p:last:mb-0 prose-strong:text-green-800 prose-em:text-green-700 prose-ul:pl-4 prose-ol:pl-4 prose-li:mb-0.5">
                         <ReactMarkdown
                           components={{
                             p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
                             strong: ({ children }) => <strong className="font-bold text-green-800">{children}</strong>,
                             em: ({ children }) => <em className="italic text-green-700">{children}</em>,
-                            ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
-                            ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
-                            li: ({ children }) => <li className="mb-1">{children}</li>,
+                            ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-0.5">{children}</ul>,
+                            ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-0.5">{children}</ol>,
+                            li: ({ children }) => <li className="text-gray-700">{children}</li>,
+                            h3: ({ children }) => <h3 className="font-bold text-gray-800 mt-3 mb-1.5 text-sm">{children}</h3>,
+                            h4: ({ children }) => <h4 className="font-semibold text-gray-700 mt-2 mb-1 text-xs uppercase tracking-wide">{children}</h4>,
+                            code: ({ children }) => <code className="bg-green-50 text-green-700 px-1.5 py-0.5 rounded text-xs font-mono">{children}</code>,
                           }}
                         >
                           {message.text}
                         </ReactMarkdown>
                       </div>
                     ) : (
-                      <p className="text-sm">{message.text}</p>
+                      <p>{message.text}</p>
                     )}
-                    {message.sender === 'assistant' && (
-                      <div className="mt-1 flex items-center justify-between gap-2">
-                        <p className="text-xs opacity-70">
-                          {message.timestamp.toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </p>
-                        <button
-                          onClick={() => speakText(message.text)}
-                          className={`inline-flex items-center gap-1 text-xs ${
-                            voiceEnabled
-                              ? 'text-green-700 hover:text-green-900'
-                              : 'text-gray-400 cursor-not-allowed'
-                          }`}
-                          disabled={!voiceEnabled}
-                          title={
-                            voiceEnabled
-                              ? 'Play this message'
-                              : 'Voice is muted in settings'
-                          }
-                        >
-                          <Volume1 className="h-3 w-3" />
-                          <span>
-                            {language === 'hi'
-                              ? 'आवाज़ चलाएं'
-                              : language === 'bn'
-                                ? 'শুনুন'
-                                : 'Listen'}
-                          </span>
-                        </button>
+
+                    {/* Disease detection structured card */}
+                    {isAI && message.diseaseDetection && (
+                      <div className="mt-3 -mx-1 rounded-xl overflow-hidden border border-green-200/60">
+                        <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-3 py-2 flex items-center gap-2">
+                          <Scan size={13} className="text-white opacity-90" />
+                          <span className="text-xs font-bold text-white">Plant Health Report</span>
+                          {message.diseaseDetection.confidence && (
+                            <span className="ml-auto text-[10px] font-bold bg-white/20 text-white px-2 py-0.5 rounded-full">
+                              {Math.round(message.diseaseDetection.confidence)}% confidence
+                            </span>
+                          )}
+                        </div>
+                        <div className="bg-white p-3 space-y-2">
+                          {message.diseaseDetection.disease && (
+                            <div>
+                              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Detected</p>
+                              <p className="text-sm font-bold text-gray-800">{message.diseaseDetection.disease}</p>
+                            </div>
+                          )}
+                          {message.diseaseDetection.description && (
+                            <p className="text-xs text-gray-600 leading-relaxed border-t border-gray-50 pt-2">{message.diseaseDetection.description}</p>
+                          )}
+                        </div>
                       </div>
                     )}
-                    {message.sender === 'user' && (
-                      <p className="text-xs mt-1 opacity-70">
-                        {message.timestamp.toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </p>
-                    )}
+                  </div>
 
-                    {/* We still keep structured diseaseDetection in state
-                        for future use, but we no longer show the raw
-                        model class / confidence block to the user here.
-                        The assistant's Markdown message above already
-                        contains a refined, human-friendly explanation. */}
+                  {/* Timestamp + listen */}
+                  <div className={`flex items-center gap-2 mt-1 px-1 ${isAI ? "justify-start" : "justify-end"}`}>
+                    <span className="text-[10px] text-gray-400">
+                      {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                    {isAI && (
+                      <button
+                        onClick={() => speakText(message.text)}
+                        disabled={!voiceEnabled}
+                        className={`text-[10px] flex items-center gap-1 font-medium transition-colors ${
+                          voiceEnabled ? "text-gray-400 hover:text-green-600" : "text-gray-300 cursor-not-allowed"
+                        }`}
+                        title={voiceEnabled ? "Listen" : "Voice muted"}
+                      >
+                        <Volume1 size={10} />
+                        {language === "hi" ? "सुनें" : language === "bn" ? "শুনুন" : "Listen"}
+                      </button>
+                    )}
                   </div>
                 </div>
-              ))}
-              {isTyping && (
-                <div className="flex justify-start">
-                  <div className="bg-white border border-green-100 rounded-lg rounded-bl-none px-4 py-2 shadow-sm">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-green-300 rounded-full animate-bounce"></div>
-                      <div
-                        className="w-2 h-2 bg-green-300 rounded-full animate-bounce"
-                        style={{ animationDelay: '0.2s' }}
-                      ></div>
-                      <div
-                        className="w-2 h-2 bg-green-300 rounded-full animate-bounce"
-                        style={{ animationDelay: '0.4s' }}
-                      ></div>
+
+                {/* User avatar (right) */}
+                {!isAI && (
+                  <div className={`flex-shrink-0 mb-1 ${showAvatar ? "opacity-100" : "opacity-0"}`}>
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center">
+                      <User size={15} className="text-slate-600" />
                     </div>
                   </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-          </div>
-
-          {/* Suggestions */}
-          <div className="px-4 py-3 bg-green-50 border-t border-green-100">
-            <p className="text-xs text-green-700 mb-2">
-              {language === 'bn' ? 'প্রস্তাবিত প্রশ্ন:'
-                : language === 'hi' ? 'सुझाए गए प्रश्न:'
-                  : language === 'ta' ? 'பரிந்துரைக்கப்பட்ட கேள்விகள்:'
-                    : language === 'te' ? 'স౦చించిన ప্রశ্নলু:'
-                      : language === 'mr' ? 'सुचवलेले प्रश्न:'
-                        : 'Suggested questions:'}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {(farmingSuggestions[language] || farmingSuggestions['en']).map((suggestion) => (
-                <button
-                  key={suggestion.id}
-                  onClick={() => handleSuggestionClick(suggestion.text)}
-                  className="bg-white text-green-700 text-xs py-1 px-3 rounded-full border border-green-200 hover:bg-green-100 transition-colors"
-                >
-                  {suggestion.text}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Input Area */}
-          <div className="p-4 border-t border-green-100 bg-white">
-            {/* Mounted image preview (before sending) */}
-            {selectedImage && imagePreviewUrl && (
-              <div className="mb-3 flex items-center gap-3">
-                <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden border border-green-200 bg-white flex-shrink-0">
-                  <img
-                    src={imagePreviewUrl}
-                    alt={selectedImage.name}
-                    className="w-full h-full object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={resetImageSelection}
-                    className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-black/80 text-white text-xs flex items-center justify-center hover:bg-black"
-                    title="Remove image"
-                  >
-                    ×
-                  </button>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-gray-700 truncate">
-                    {selectedImage.name}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {Math.round(selectedImage.size / 1024)} KB
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center gap-2 flex-wrap">
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder={placeholders[language] || placeholders['en']}
-                className="flex-1 min-w-[180px] border border-green-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-
-              {/* Voice Input Button */}
-              <button
-                onClick={isListening ? stopVoiceInput : startVoiceInput}
-                className={`p-2 rounded-lg transition-colors ${isListening
-                  ? 'bg-red-500 text-white hover:bg-red-600'
-                  : 'bg-blue-500 text-white hover:bg-blue-600'
-                  }`}
-                title={isListening ? 'Stop listening' : 'Start voice input'}
-              >
-                {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-              </button>
-
-              {/* Voice Output Toggle Button */}
-              <button
-                onClick={toggleVoiceOutput}
-                className={`p-2 rounded-lg transition-colors ${voiceEnabled && !isSpeaking
-                  ? 'bg-purple-500 text-white hover:bg-purple-600'
-                  : isSpeaking
-                    ? 'bg-red-500 text-white hover:bg-red-600'
-                    : 'bg-gray-400 text-white hover:bg-gray-500'
-                  }`}
-                title={
-                  isSpeaking
-                    ? 'Stop speaking'
-                    : voiceEnabled
-                      ? 'Voice output enabled'
-                      : 'Voice output disabled'
-                }
-              >
-                {voiceEnabled && !isSpeaking ? (
-                  <Volume2 className="h-5 w-5" />
-                ) : (
-                  <VolumeX className="h-5 w-5" />
                 )}
-              </button>
+              </div>
+            );
+          })}
 
-              <button
-                onClick={() => handleSendMessage()}
-                disabled={!inputValue.trim() && !selectedImage}
-                className={`p-2 rounded-lg ${inputValue.trim() || selectedImage
-                  ? 'bg-green-500 text-white hover:bg-green-600'
-                  : 'bg-gray-100 text-gray-400'
-                  } transition-colors`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
-                </svg>
-              </button>
-
-              {/* Image upload button */}
-              <button
-                type="button"
-                onClick={() => imageInputRef.current?.click()}
-                className="p-2 bg-white border border-green-200 rounded-lg hover:bg-green-50 transition-colors"
-                title={
-                  language === 'hi'
-                    ? 'छवि अपलोड करें'
-                    : language === 'bn'
-                      ? 'ছবি আপলোড করুন'
-                      : 'Upload image for analysis'
-                }
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 text-green-600"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <path d="M21 15l-5-5L5 21" />
-                </svg>
-              </button>
-              <input
-                type="file"
-                accept="image/*"
-                ref={imageInputRef}
-                onChange={handleImageChange}
-                className="hidden"
-              />
+          {/* Typing / loading indicator */}
+          {isTyping && (
+            <div className="flex items-end gap-2.5 justify-start">
+              <div className="flex-shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-md shadow-green-200/40">
+                  <Bot size={15} className="text-white" />
+                </div>
+              </div>
+              <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm flex items-center gap-3">
+                <div className="flex items-center gap-1">
+                  {[0, 0.15, 0.3].map((delay, i) => (
+                    <div
+                      key={i}
+                      className="w-2 h-2 bg-green-400 rounded-full animate-bounce"
+                      style={{ animationDelay: `${delay}s` }}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs text-gray-400 font-medium">
+                  {isImageAnalyzing
+                    ? language === "hi"
+                      ? "छवि विश्लेषण हो रहा है…"
+                      : language === "bn"
+                        ? "ছবি বিশ্লেষণ হচ্ছে…"
+                        : "Analyzing plant image…"
+                    : language === "hi"
+                      ? "जवाब तैयार हो रहा है…"
+                      : language === "bn"
+                        ? "উত্তর তৈরি হচ্ছে…"
+                        : "KrishiBot is thinking…"}
+                </span>
+              </div>
             </div>
+          )}
 
-            {/* Voice Input Status */}
-            {isListening && (
-              <div className="mt-2 flex items-center justify-center">
-                <div className="flex items-center space-x-2 text-blue-600">
-                  <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
-                  <span className="text-sm">
-                    {language === 'hi' ? 'सुन रहा हूं...' : language === 'bn' ? 'শুনছি...' : 'Listening...'}
-                  </span>
-                </div>
-              </div>
-            )}
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
 
-            {/* Speaking Status */}
-            {isSpeaking && (
-              <div className="mt-2 flex items-center justify-center">
-                <div className="flex items-center space-x-2 text-purple-600">
-                  <div className="w-2 h-2 bg-purple-600 rounded-full animate-pulse"></div>
-                  <span className="text-sm">
-                    {language === 'hi' ? 'बोल रहा हूं...' : language === 'bn' ? 'বলছি...' : 'Speaking...'}
-                  </span>
-                </div>
+      {/* ============================================================ */}
+      {/* COMPOSER                                                       */}
+      {/* ============================================================ */}
+      <div className="px-4 pb-4 pt-2 bg-gradient-to-t from-white/90 to-transparent">
+        <div className="max-w-2xl mx-auto">
+
+          {/* Status banners */}
+          {(isListening || isSpeaking || isImageAnalyzing) && (
+            <div className="flex justify-center mb-2">
+              <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm ${
+                isListening
+                  ? "bg-red-500 text-white"
+                  : isSpeaking
+                    ? "bg-purple-500 text-white"
+                    : "bg-green-500 text-white"
+              }`}>
+                <div className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                {isListening
+                  ? language === "hi" ? "सुन रहा हूं…" : language === "bn" ? "শুনছি…" : "Listening…"
+                  : isSpeaking
+                    ? language === "hi" ? "बोल रहा हूं…" : language === "bn" ? "বলছি…" : "Speaking…"
+                    : language === "hi" ? "छवि विश्लेषण…" : language === "bn" ? "ছবি বিশ্লেষণ…" : "Analyzing image…"
+                }
               </div>
-            )}
-            {isImageAnalyzing && (
-              <div className="mt-2 flex items-center justify-center">
-                <div className="flex items-center space-x-2 text-green-600">
-                  <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></div>
-                  <span className="text-sm">
-                    {language === 'hi'
-                      ? 'छवि विश्लेषण हो रहा है...'
-                      : language === 'bn'
-                        ? 'ছবি বিশ্লেষণ হচ্ছে...'
-                        : 'Analyzing image...'}
-                  </span>
-                </div>
+            </div>
+          )}
+
+          {/* Image preview */}
+          {selectedImage && imagePreviewUrl && (
+            <div className="mb-2 flex items-center gap-3 bg-white rounded-xl px-3 py-2 border border-gray-100 shadow-sm">
+              <div className="relative w-14 h-14 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0 bg-gray-50">
+                <img
+                  src={imagePreviewUrl}
+                  alt={selectedImage.name}
+                  className="w-full h-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={resetImageSelection}
+                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-gray-800 text-white flex items-center justify-center shadow"
+                  title="Remove"
+                >
+                  <XIcon size={9} />
+                </button>
               </div>
-            )}
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-gray-700 truncate">{selectedImage.name}</p>
+                <p className="text-[10px] text-gray-400">{Math.round(selectedImage.size / 1024)} KB · Ready to analyze</p>
+              </div>
+            </div>
+          )}
+
+          {/* Main input row */}
+          <div className="flex items-center gap-2 bg-white rounded-2xl border border-gray-200 shadow-lg shadow-gray-100/80 px-2 py-2 focus-within:border-green-400/70 focus-within:shadow-green-100/50 transition-all">
+
+            {/* Image upload */}
+            <button
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+              title={language === "hi" ? "छवि अपलोड करें" : language === "bn" ? "ছবি আপলোড করুন" : "Upload plant image"}
+              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all flex-shrink-0 ${
+                selectedImage
+                  ? "bg-green-100 text-green-600"
+                  : "text-gray-400 hover:text-green-600 hover:bg-green-50"
+              }`}
+            >
+              <ImageIcon size={18} />
+            </button>
+            <input
+              type="file"
+              accept="image/*"
+              ref={imageInputRef}
+              onChange={handleImageChange}
+              className="hidden"
+            />
+
+            {/* Text input */}
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder={placeholders[language] || placeholders["en"]}
+              className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-gray-700 placeholder:text-gray-400 py-1 min-w-0"
+            />
+
+            {/* Mic button */}
+            <button
+              onClick={isListening ? stopVoiceInput : startVoiceInput}
+              title={isListening ? "Stop" : "Voice input"}
+              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all flex-shrink-0 ${
+                isListening
+                  ? "bg-red-500 text-white animate-pulse"
+                  : "text-gray-400 hover:text-green-600 hover:bg-green-50"
+              }`}
+            >
+              {isListening ? <MicOff size={17} /> : <Mic size={17} />}
+            </button>
+
+            {/* Send button */}
+            <button
+              onClick={() => handleSendMessage()}
+              disabled={!inputValue.trim() && !selectedImage}
+              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all flex-shrink-0 ${
+                inputValue.trim() || selectedImage
+                  ? "bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-md shadow-green-200 hover:shadow-green-300 hover:-translate-y-px active:translate-y-0"
+                  : "bg-gray-100 text-gray-300 cursor-not-allowed"
+              }`}
+            >
+              <Send size={16} className={inputValue.trim() || selectedImage ? "translate-x-px -translate-y-px" : ""} />
+            </button>
           </div>
+
+          <p className="mt-2 text-[10px] text-center text-gray-400 font-medium tracking-wider uppercase">
+            Powered by GreenGrow AI · KrishiBot v2
+          </p>
         </div>
       </div>
     </div>

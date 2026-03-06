@@ -38,34 +38,38 @@ const PlantDetail: React.FC = () => {
     fetchDetail();
   }, [id]);
 
-  if (!id) {
-    return <p className="text-sm text-gray-500">No plant selected.</p>;
-  }
-
-  if (loading) {
-    return <p className="text-sm text-gray-500">Loading plant details...</p>;
-  }
-
-  if (error) {
-    return <p className="text-sm text-red-600">{error}</p>;
-  }
-
-  if (!data) {
-    return null;
-  }
+  if (!id) return <p className="text-sm text-gray-500">No plant selected.</p>;
+  if (loading) return <p className="text-sm text-gray-500">Loading plant details...</p>;
+  if (error) return <p className="text-sm text-red-600">{error}</p>;
+  if (!data) return null;
 
   const { plant, images, assessments } = data;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">
-          {plant.plantName || plant.cropType || "Plant"}
-        </h1>
-        <p className="text-sm text-gray-500">
-          {plant.cropType && <span className="mr-2">{plant.cropType}</span>}
-          {plant.location && <span>• {plant.location}</span>}
-        </p>
+      <div className="flex items-start gap-4">
+        <div className="h-20 w-20 rounded-xl overflow-hidden bg-gray-100 border">
+          {plant.profileImage ? (
+            <img
+              src={plant.profileImage}
+              alt={plant.plantName || "Plant"}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="h-full w-full flex items-center justify-center text-sm text-gray-400">
+              No image
+            </div>
+          )}
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">
+            {plant.plantName || plant.cropType || "Plant"}
+          </h1>
+          <p className="text-sm text-gray-500">
+            {plant.cropType && <span className="mr-2">{plant.cropType}</span>}
+            {plant.location && <span>• {plant.location}</span>}
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -82,8 +86,16 @@ const PlantDetail: React.FC = () => {
                 key={img._id}
                 className="flex items-center gap-3 border rounded-md p-2 bg-gray-50"
               >
-                <div className="w-16 h-16 bg-gray-200 rounded-md flex items-center justify-center text-xs text-gray-500">
-                  Img
+                <div className="w-16 h-16 bg-gray-200 rounded-md overflow-hidden flex items-center justify-center text-xs text-gray-500">
+                  {img.storagePath ? (
+                    <img
+                      src={img.storagePath}
+                      alt="Plant"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    "Img"
+                  )}
                 </div>
                 <div className="flex-1">
                   <p className="text-sm text-gray-800">
@@ -147,4 +159,3 @@ const PlantDetail: React.FC = () => {
 };
 
 export default PlantDetail;
-

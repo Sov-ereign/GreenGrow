@@ -58,6 +58,7 @@ function AppContent() {
             <Route path="/schemes" element={<Schemes />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/chat" element={<Chat />} />
+            <Route path="/chat/:sessionKey" element={<Chat />} />
             <Route path="/voice" element={<VapiWidget />} />
             <Route path="/ivr-dialer" element={<IvrDialer />} />
             <Route path="/FarmForm" element={<FarmForm />} />

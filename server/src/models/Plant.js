@@ -15,6 +15,16 @@ const plantSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    profileImage: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    linkedChatId: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     location: {
       type: String,
       trim: true,

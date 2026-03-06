@@ -85,6 +85,38 @@ const normalizeSessionTitle = (raw = "") => {
   return cleaned.length > 80 ? `${cleaned.slice(0, 80).trim()}...` : cleaned;
 };
 
+const generatePlantName = async (diseaseResult) => {
+  const guess =
+    diseaseResult?.disease ||
+    diseaseResult?.predicted_class ||
+    diseaseResult?.crop ||
+    "";
+  try {
+    const data = await createChatCompletion({
+      model: getGroqModel("llama-3.1-8b-instant"),
+      messages: [
+        {
+          role: "system",
+          content:
+            "You see plant disease analysis. Reply with the crop/plant name only (1-2 words). No punctuation.",
+        },
+        {
+          role: "user",
+          content: `Detected class: ${guess || "Unknown"}
+If you can infer the crop name, answer it. Else respond "Unknown Plant".`,
+        },
+      ],
+      temperature: 0.2,
+      max_completion_tokens: 10,
+    });
+    const name = getMessageText(data)?.split("\n")[0]?.trim();
+    if (!name) return "Unknown Plant";
+    return name;
+  } catch (err) {
+    return "Unknown Plant";
+  }
+};
+
 const generateSessionTitle = async ({
   userText = "",
   assistantText = "",
@@ -424,6 +456,7 @@ router.get("/sessions", protect, async (req, res) => {
 
       return {
         id: session._id,
+        sessionKey: session.sessionId || String(session._id),
         plantId: session.plant ? session.plant._id || session.plant : null,
         title,
         lastMessage: lastMessageText,
@@ -466,12 +499,92 @@ router.get("/sessions/:id", protect, async (req, res) => {
 
     res.json({
       sessionId: session._id,
+      sessionKey: session.sessionId,
       plantId: session.plant || null,
       messages: formattedMessages,
     });
   } catch (err) {
     console.error("Error fetching chat session messages:", err);
     res.status(500).json({ error: "Failed to load chat session messages" });
+  }
+});
+
+// Get or create latest chat session by plant
+router.get("/sessions/by-plant/:plantId", protect, async (req, res) => {
+  try {
+    const plant = await Plant.findOne({
+      _id: req.params.plantId,
+      user: req.user._id,
+    });
+    if (!plant) {
+      return res.status(404).json({ error: "Plant not found" });
+    }
+    let session = await ChatSession.findOne({
+      plant: plant._id,
+      user: req.user._id,
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    if (!session) {
+      session = await ChatSession.create({
+        plant: plant._id,
+        user: req.user._id,
+      });
+      // ensure linkedChatId set
+      plant.linkedChatId = session.sessionId;
+      await plant.save();
+    } else if (!plant.linkedChatId) {
+      plant.linkedChatId = session.sessionId;
+      await plant.save();
+    }
+
+    res.json({
+      sessionId: session._id,
+      sessionKey: session.sessionId || String(session._id),
+      plantId: plant._id,
+    });
+  } catch (err) {
+    console.error("Error getting session by plant:", err);
+    res.status(500).json({ error: "Failed to load/create chat session" });
+  }
+});
+
+// Get messages by public sessionId (UUID) for routing continuity
+router.get("/sessions/key/:sessionKey", protect, async (req, res) => {
+  try {
+    const session = await ChatSession.findOne({
+      sessionId: req.params.sessionKey,
+      user: req.user._id,
+    }).lean();
+
+    if (!session) {
+      return res.status(404).json({ error: "Chat session not found" });
+    }
+
+    const messages = await ChatMessage.find({ session: session._id })
+      .populate("image", "storagePath cloudinaryPublicId")
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const formattedMessages = messages.map((m) => ({
+      id: m._id,
+      sender: m.sender,
+      message: m.message,
+      timestamp: m.createdAt,
+      imageUrl: m.image?.storagePath || null,
+      imagePublicId: m.image?.cloudinaryPublicId || null,
+    }));
+
+    res.json({
+      sessionId: session._id,
+      sessionKey: session.sessionId,
+      plantId: session.plant || null,
+      messages: formattedMessages,
+    });
+  } catch (err) {
+    console.error("Error fetching chat session by key:", err);
+    res.status(500).json({ error: "Failed to load chat session" });
   }
 });
 
@@ -557,6 +670,10 @@ router.post("/message", protect, async (req, res) => {
         user: req.user._id,
         plant: plant ? plant._id : undefined,
       });
+      if (plant && !plant.linkedChatId) {
+        plant.linkedChatId = session.sessionId;
+        await plant.save();
+      }
     }
 
     await ChatMessage.create({
@@ -783,19 +900,23 @@ Always reply in ${languageName}. Keep it concise but actionable.`,
 
     if (!plant) {
       const inferredCropType = inferCropTypeFromDisease(diseaseResult);
-      const baseName = inferredCropType || "Plant";
-
-      const countForUserAndCrop = await Plant.countDocuments({
-        user: req.user._id,
-        cropType: inferredCropType,
-      });
+      const autoName = await generatePlantName(diseaseResult);
 
       plant = await Plant.create({
         user: req.user._id,
-        plantName: `${baseName} #${countForUserAndCrop + 1}`,
-        cropType: inferredCropType,
+        plantName: autoName || inferredCropType || "Unknown Plant",
+        cropType: inferredCropType || null,
         location: undefined,
       });
+    } else {
+      if (!plant.plantName || plant.plantName.startsWith("Plant #")) {
+        const autoName = await generatePlantName(diseaseResult);
+        plant.plantName = autoName || plant.plantName;
+      }
+      const inferredCropType = inferCropTypeFromDisease(diseaseResult);
+      if (inferredCropType && !plant.cropType) {
+        plant.cropType = inferredCropType;
+      }
     }
 
     // Look up previous assessment for trend analysis
@@ -841,6 +962,10 @@ Always reply in ${languageName}. Keep it concise but actionable.`,
       cloudinaryPublicId: imagePublicId,
     });
 
+    if (!plant.profileImage) {
+      plant.profileImage = imageStoragePath;
+    }
+
     const { severity, riskLevel, currentStatus } =
       deriveSeverityAndRisk(diseaseResult);
 
@@ -884,6 +1009,7 @@ Always reply in ${languageName}. Keep it concise but actionable.`,
     plant.latestImage = plantImage._id;
     plant.currentStatus = currentStatus;
     plant.riskLevel = riskLevel;
+    // ensure linked chat id set below when session determined
     await plant.save();
 
     // Create open recommendation record
@@ -909,6 +1035,10 @@ Always reply in ${languageName}. Keep it concise but actionable.`,
         user: req.user._id,
         plant: plant._id,
       });
+    }
+
+    if (!plant.linkedChatId) {
+      plant.linkedChatId = session.sessionId;
     }
 
     const userMessageText =

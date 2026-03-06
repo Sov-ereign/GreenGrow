@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { Cloud, Droplets, Wind, MapPin } from "lucide-react";
+import {
+  Cloud,
+  Droplets,
+  Wind,
+  MapPin,
+  ThermometerSun,
+  Gauge,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const WeatherWidget: React.FC = () => {
@@ -24,7 +31,6 @@ const WeatherWidget: React.FC = () => {
         );
         if (reverseGeo.data?.[0]) {
           const geo = reverseGeo.data[0];
-          // Format: City, State, Country (if available)
           const parts = [];
           if (geo.name) parts.push(geo.name);
           if (geo.state && geo.state !== geo.name) parts.push(geo.state);
@@ -42,12 +48,10 @@ const WeatherWidget: React.FC = () => {
           `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`
         );
         weatherData = res.data;
-        // Use location from weather API only if reverse geocoding didn't work
         if (!nextLocation && res.data.name) {
           nextLocation = res.data.name;
         }
       } catch (currentErr: any) {
-        // If current weather fails, use first day from forecast
         try {
           const forecastRes = await axios.get(
             `https://api.openweathermap.org/data/2.5/forecast/daily?lat=${lat}&lon=${lon}&cnt=1&units=metric&appid=${API_KEY}`
@@ -67,7 +71,6 @@ const WeatherWidget: React.FC = () => {
               },
               visibility: 10000,
             };
-            // Use location from forecast only if reverse geocoding didn't work
             if (!nextLocation && forecastRes.data.city?.name) {
               nextLocation = forecastRes.data.city.name;
             }
@@ -76,12 +79,11 @@ const WeatherWidget: React.FC = () => {
           throw currentErr; // Throw original error
         }
       }
-      
+
       if (weatherData) {
         setData(weatherData);
       }
-      
-      // Final fallback if no location found
+
       if (!nextLocation) {
         nextLocation = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
       }
@@ -102,18 +104,16 @@ const WeatherWidget: React.FC = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          // Use high accuracy coordinates
           fetchWeatherByCoords(pos.coords.latitude, pos.coords.longitude);
         },
         (error) => {
           console.warn("Geolocation error:", error);
-          // Try fallback to default location
           fetchWeatherByCoords(22.5726, 88.3639); // Default: Kolkata
         },
         {
           enableHighAccuracy: true,
           timeout: 10000,
-          maximumAge: 300000, // Cache for 5 minutes
+          maximumAge: 300000,
         }
       );
     } else {
@@ -123,7 +123,7 @@ const WeatherWidget: React.FC = () => {
 
   if (!API_KEY) {
     return (
-      <div className="bg-white rounded-xl shadow-md p-6 text-center text-gray-500">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-center text-gray-500">
         <div className="text-sm">Weather API key missing</div>
         <div className="text-xs mt-1">Add VITE_WEATHER_API_KEY to Client/.env</div>
       </div>
@@ -132,52 +132,70 @@ const WeatherWidget: React.FC = () => {
 
   if (!data)
     return (
-      <div className="bg-white rounded-xl shadow-md p-6 text-center text-gray-500">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-center text-gray-500">
         Loading weather...
       </div>
     );
 
   return (
     <div
-      className="bg-gradient-to-br from-green-100 to-green-50 rounded-xl md:rounded-2xl shadow-md p-4 md:p-6 cursor-pointer hover:shadow-lg transition-all"
+      className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 md:p-6 cursor-pointer hover:shadow-md transition-all space-y-4"
       onClick={() => navigate("/weather")}
     >
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-base md:text-lg font-semibold text-gray-800 flex items-center truncate flex-1 min-w-0">
-          <MapPin className="h-4 w-4 text-red-500 mr-1 flex-shrink-0" />
-          <span className="truncate">{location}</span>
-        </h2>
-        <img
-          src={`https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`}
-          alt="Weather"
-          className="h-10 w-10 md:h-12 md:w-12 flex-shrink-0 ml-2"
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.15em] text-emerald-600 font-semibold">
+            Local conditions
+          </p>
+          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-emerald-600" />
+            <span className="truncate">{location}</span>
+          </h2>
+        </div>
+        <div className="rounded-xl bg-emerald-50 p-2 border border-emerald-100">
+          <img
+            src={`https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`}
+            alt="Weather"
+            className="h-12 w-12"
+          />
+        </div>
+      </div>
+
+      <div className="flex items-baseline gap-3">
+        <div className="text-4xl font-bold text-slate-900">
+          {Math.round(data.main.temp)}°C
+        </div>
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <ThermometerSun className="h-4 w-4 text-amber-500" />
+          Feels like {Math.round(data.main.feels_like || data.main.temp)}°C
+        </div>
+      </div>
+      <p className="text-sm text-slate-600 capitalize">
+        {data.weather[0].description}
+      </p>
+
+      <div className="grid grid-cols-3 gap-3 text-xs md:text-sm text-slate-700">
+        <InfoChip
+          icon={Droplets}
+          label="Humidity"
+          value={`${data.main.humidity}%`}
+          tone="sky"
+        />
+        <InfoChip icon={Wind} label="Wind" value={`${data.wind.speed} km/h`} tone="emerald" />
+        <InfoChip
+          icon={Cloud}
+          label="Visibility"
+          value={`${(data.visibility / 1000).toFixed(1)} km`}
+          tone="amber"
         />
       </div>
 
-      <div className="text-3xl md:text-4xl font-bold text-gray-800 mb-1">
-        {Math.round(data.main.temp)}°C
-      </div>
-      <div className="text-xs md:text-sm text-gray-600 capitalize mb-3">
-        {data.weather[0].description}
-      </div>
-
-      <div className="flex justify-between text-xs md:text-sm text-gray-700">
-        <div className="flex items-center">
-          <Droplets className="h-4 w-4 text-blue-500 mr-1" />
-          {data.main.humidity}%
+      <div className="flex items-center justify-between text-xs text-slate-500">
+        <div className="flex items-center gap-1">
+          <Gauge className="h-4 w-4" />
+          Tap for full forecast
         </div>
-        <div className="flex items-center">
-          <Wind className="h-4 w-4 text-green-500 mr-1" />
-          {data.wind.speed} km/h
-        </div>
-        <div className="flex items-center">
-          <Cloud className="h-4 w-4 text-yellow-500 mr-1" />
-          {(data.visibility / 1000).toFixed(1)} km
-        </div>
-      </div>
-
-      <div className="text-xs text-gray-400 text-right mt-3">
-        Click for detailed forecast →
+        <span className="text-emerald-700 font-semibold">Open weather</span>
       </div>
     </div>
   );
@@ -185,3 +203,31 @@ const WeatherWidget: React.FC = () => {
 
 export default WeatherWidget;
 
+const InfoChip = ({
+  icon: Icon,
+  label,
+  value,
+  tone = "slate",
+}: {
+  icon: any;
+  label: string;
+  value: string;
+  tone?: "emerald" | "amber" | "sky" | "slate";
+}) => {
+  const tones = {
+    emerald: { bg: "bg-emerald-50", text: "text-emerald-700" },
+    amber: { bg: "bg-amber-50", text: "text-amber-700" },
+    sky: { bg: "bg-sky-50", text: "text-sky-700" },
+    slate: { bg: "bg-slate-50", text: "text-slate-700" },
+  };
+  const t = (tones as any)[tone] || tones.slate;
+  return (
+    <div className="rounded-xl border border-gray-100 bg-white shadow-sm p-3 flex flex-col gap-1">
+      <div className={`inline-flex items-center gap-1 text-[11px] font-semibold ${t.text}`}>
+        <Icon className="h-4 w-4" />
+        {label}
+      </div>
+      <span className="text-sm font-semibold text-slate-900">{value}</span>
+    </div>
+  );
+};

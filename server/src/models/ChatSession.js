@@ -1,7 +1,14 @@
 import mongoose from "mongoose";
+import { randomUUID } from "crypto";
 
 const chatSessionSchema = new mongoose.Schema(
   {
+    sessionId: {
+      type: String,
+      default: () => randomUUID(),
+      unique: true,
+      index: true,
+    },
     plant: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Plant",
