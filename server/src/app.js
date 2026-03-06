@@ -28,10 +28,18 @@ const allowedOrigins = [
   "https://greengrow.vercel.app",
 ];
 
+const isAllowedOrigin = (origin = "") => {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  // Allow any Vercel preview/production domain
+  if (origin.endsWith(".vercel.app")) return true;
+  return false;
+};
+
 // Robust CORS configuration for dev
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (isAllowedOrigin(origin)) {
       callback(null, true);
     } else {
       callback(new Error("Not allowed by CORS"));
