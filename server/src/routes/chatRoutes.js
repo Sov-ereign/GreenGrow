@@ -836,12 +836,23 @@ router.post("/message", protect, async (req, res) => {
       `Provide helpful, practical advice in a friendly and professional manner. ` +
       `Always respond ONLY in ${languageName} (no English), using simple, farmer-friendly language.`;
 
+    // Build short recent history (last 20 turns) so KrishiBot keeps context
+    const recentMessages = await ChatMessage.find({ session: session._id })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .select("sender message")
+      .lean();
+
+    const history = recentMessages
+      .reverse() // oldest -> newest
+      .map((m) => ({
+        role: m.sender === "assistant" ? "assistant" : "user",
+        content: m.message || "",
+      }));
+
     const data = await createChatCompletion({
       model: getGroqModel("llama-3.1-8b-instant"),
-      messages: [
-        { role: "system", content: prompt },
-        { role: "user", content: message },
-      ],
+      messages: [{ role: "system", content: prompt }, ...history],
       temperature: 0.4,
       max_completion_tokens: 512,
     });
