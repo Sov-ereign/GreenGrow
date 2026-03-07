@@ -226,22 +226,19 @@ const Home: React.FC = () => {
           <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
             <div className="flex items-center space-x-3">
               <div
-                className={`p-2 rounded-lg ${
-                  isDeviceConnected ? "bg-green-100" : "bg-red-100"
-                }`}
+                className={`p-2 rounded-lg ${isDeviceConnected ? "bg-green-100" : "bg-red-100"
+                  }`}
               >
                 <Activity
-                  className={`h-5 w-5 ${
-                    isDeviceConnected ? "text-green-600" : "text-red-600"
-                  }`}
+                  className={`h-5 w-5 ${isDeviceConnected ? "text-green-600" : "text-red-600"
+                    }`}
                 />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Device Status</p>
                 <p
-                  className={`text-lg font-bold ${
-                    isDeviceConnected ? "text-green-600" : "text-red-600"
-                  }`}
+                  className={`text-lg font-bold ${isDeviceConnected ? "text-green-600" : "text-red-600"
+                    }`}
                 >
                   {isDeviceConnected ? "Connected" : "Not Connected"}
                 </p>
@@ -266,11 +263,10 @@ const Home: React.FC = () => {
           <button
             onClick={handleStartWatering}
             disabled={!isDeviceConnected}
-            className={`w-full py-4 px-6 rounded-xl font-bold text-lg shadow-lg transition-all transform ${
-              isDeviceConnected
+            className={`w-full py-4 px-6 rounded-xl font-bold text-lg shadow-lg transition-all transform ${isDeviceConnected
                 ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white hover:scale-[1.02] hover:shadow-xl"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
-            }`}
+              }`}
           >
             <div className="flex items-center justify-center space-x-3">
               <Droplets className="h-6 w-6" />

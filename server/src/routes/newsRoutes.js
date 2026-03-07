@@ -1,73 +1,65 @@
 import express from 'express';
-import {
-  createChatCompletion,
-  getGroqModel,
-  getMessageText,
-} from "../services/groqClient.js";
+import axios from 'axios';
+
 const router = express.Router();
 
 router.get('/', async (req, res) => {
   try {
-    const prompt =
-      `Generate 4 short news headlines about today's mandi market prices in India. ` +
-      `Include crop trends, price changes, and government updates. ` +
-      `For each headline, provide a title, a time (e.g., "Today", "1h ago"), ` +
-      `and an impact ("positive", "negative", or "neutral") based on the headline's sentiment.`;
-
-    const responseFormat = {
-      type: "json_schema",
-      json_schema: {
-        name: "mandi_news",
-        strict: false,
-        schema: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              title: { type: "string" },
-              time: { type: "string" },
-              impact: { type: "string" },
-            },
-            required: ["title", "time", "impact"],
-          },
-        },
-      },
-    };
-
-    const data = await createChatCompletion({
-      model: getGroqModel("llama-3.1-8b-instant"),
-      messages: [
-        {
-          role: "system",
-          content:
-            "You generate short, factual-looking mandi market headlines. Output valid JSON only.",
-        },
-        { role: "user", content: prompt },
-      ],
-      temperature: 0.3,
-      max_completion_tokens: 300,
-      response_format: responseFormat,
-    });
-
-    const jsonText = getMessageText(data);
-    if (!jsonText) {
-      throw new Error("Invalid response structure from Groq");
+    const apiKey = process.env.NEWS_API_KEY;
+    if (!apiKey) {
+      throw new Error("NEWS_API_KEY is not defined");
     }
 
-    const newsData = JSON.parse(jsonText);
+    // Fetch from NewsAPI.org with strict agricultural focus
+    const response = await axios.get('https://newsapi.org/v2/everything', {
+      params: {
+        apiKey: apiKey,
+        // Using restrictive keywords and excluding unrelated complex financial/political terms
+        q: "agriculture, farming",
+        language: 'en',
+        sortBy: 'publishedAt',
+        pageSize: 20 // Fetch more to allow for filtering
+      }
+    });
+
+    if (response.data.status !== 'ok') {
+      throw new Error(response.data.message || "Failed to fetch news from NewsAPI.org");
+    }
+
+    const articles = response.data.articles || [];
+
+    // Strict keyword set for secondary validation to ensure agricultural relevance
+    const agKeywords = ["farm", "crop", "agriculture", "mandi", "harvest", "yield", "cultivation", "irrigation", "soil", "agri", "wheat", "rice", "tomato", "cotton", "onion", "farmer"];
+
+    const newsData = articles
+      .filter(article => {
+        const content = (article.title + " " + (article.description || "")).toLowerCase();
+        return agKeywords.some(keyword => content.includes(keyword));
+      })
+      .slice(0, 10) // Limit to top 10 most relevant news items
+      .map((article) => {
+        const text = (article.title + " " + (article.description || "")).toLowerCase();
+        let impact = "neutral";
+
+        if (text.includes("rise") || text.includes("gain") || text.includes("high") || text.includes("profit") || text.includes("increase") || text.includes("growth") || text.includes("incentive")) {
+          impact = "positive";
+        } else if (text.includes("fall") || text.includes("loss") || text.includes("low") || text.includes("drop") || text.includes("decrease") || text.includes("crisis") || text.includes("damage")) {
+          impact = "negative";
+        }
+
+        return {
+          title: article.title,
+          time: article.publishedAt ? new Date(article.publishedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Today",
+          impact: impact
+        };
+      });
+
     res.json({ news: newsData });
 
   } catch (err) {
-    let errorMessage = err.message;
-    if (err.response?.data?.error) {
-        errorMessage = err.response.data.error.message;
-    } else if (err.response?.data) {
-        errorMessage = JSON.stringify(err.response.data);
-    }
-    console.error('Error generating news:', errorMessage);
-    res.status(500).json({ error: 'Failed to generate news' });
+    console.error('Error fetching market news from NewsAPI:', err.message);
+    res.status(500).json({ error: 'Failed to fetch market news' });
   }
 });
 
 export default router;
-

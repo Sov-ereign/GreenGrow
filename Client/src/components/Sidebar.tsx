@@ -64,7 +64,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       path: "/crop-production"
     },
     { id: "weather", label: "Weather", icon: CloudRain, path: "/weather" },
-    { id: "crops", label: "Crops", icon: Wheat, path: "/crops" },
+
     { id: "market", label: "Market Prices", icon: DollarSign, path: "/market" },
     { id: "schemes", label: "Gov Schemes", icon: Building2, path: "/schemes" },
     { id: "settings", label: "Settings", icon: Settings, path: "/settings" },

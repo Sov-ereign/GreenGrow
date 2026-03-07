@@ -27,11 +27,11 @@ interface PlantSummary {
   linkedChatId?: string | null;
   latestSessionKey?: string | null;
   latestImage?:
-    | {
-        id: string;
-        storagePath: string;
-      }
-    | null;
+  | {
+    id: string;
+    storagePath: string;
+  }
+  | null;
   latestAssessment?: {
     severity?: string;
     diseasePrediction?: string;
@@ -159,10 +159,10 @@ const RecommendationsPanel: React.FC = () => {
       severity === "high"
         ? 42
         : severity === "medium"
-        ? 68
-        : severity === "low"
-        ? 92
-        : 60;
+          ? 68
+          : severity === "low"
+            ? 92
+            : 60;
     if (trend === "improving") base += 6;
     if (trend === "worsening") base -= 8;
     return Math.max(15, Math.min(100, base));
@@ -301,40 +301,38 @@ const RecommendationsPanel: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.12em] text-emerald-600 font-semibold">
+          <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.12em] text-emerald-600 font-semibold">
             Continuous Plant Health
           </p>
           <h2 className="text-xl md:text-2xl font-bold text-slate-900">
             Personalized Monitoring & Recommendations
           </h2>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setSortMode("priority")}
-            className={`px-3 py-1.5 text-xs rounded-full border ${
-              sortMode === "priority"
-                ? "bg-emerald-600 text-white border-emerald-600"
-                : "bg-white text-slate-700 border-slate-200 hover:border-emerald-200"
-            }`}
+            className={`px-3 py-1.5 text-xs rounded-full border ${sortMode === "priority"
+              ? "bg-emerald-600 text-white border-emerald-600"
+              : "bg-white text-slate-700 border-slate-200 hover:border-emerald-200"
+              }`}
           >
             Severity first
           </button>
           <button
             onClick={() => setSortMode("nextCheck")}
-            className={`px-3 py-1.5 text-xs rounded-full border ${
-              sortMode === "nextCheck"
-                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                : "bg-white text-slate-700 border-slate-200 hover:border-emerald-200"
-            }`}
+            className={`px-3 py-1.5 text-xs rounded-full border ${sortMode === "nextCheck"
+              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+              : "bg-white text-slate-700 border-slate-200 hover:border-emerald-200"
+              }`}
           >
             Next check first
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3">
         <SummaryChip icon={Leaf} label="Plants monitored" value={summary.total.toString()} tone="emerald" />
         <SummaryChip icon={AlertTriangle} label="High risk" value={summary.high.toString()} tone="rose" />
         <SummaryChip icon={Bug} label="Medium risk" value={summary.medium.toString()} tone="amber" />
@@ -348,26 +346,25 @@ const RecommendationsPanel: React.FC = () => {
 
       {/* Featured top plants + controls */}
       {!loading && filteredPlants.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <p className="text-sm font-semibold text-slate-700">Highlighted plants (top 3 by risk and urgency)</p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <input
               type="text"
               placeholder="Search plants..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="text-sm bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+              className="text-sm bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400/60 w-full sm:w-auto"
             />
-            <div className="flex gap-1">
+            <div className="flex flex-wrap gap-1">
               {["all", "high", "medium", "low"].map((risk) => (
                 <button
                   key={risk}
                   onClick={() => setRiskFilter(risk as any)}
-                  className={`px-3 py-1.5 text-xs rounded-full border transition ${
-                    riskFilter === risk
-                      ? "bg-emerald-600 text-white border-emerald-600"
-                      : "bg-white text-slate-700 border-slate-200 hover:border-emerald-200"
-                  }`}
+                  className={`flex-1 sm:flex-none px-3 py-1.5 text-xs rounded-full border transition ${riskFilter === risk
+                    ? "bg-emerald-600 text-white border-emerald-600"
+                    : "bg-white text-slate-700 border-slate-200 hover:border-emerald-200"
+                    }`}
                 >
                   {risk === "all" ? "All" : risk[0].toUpperCase() + risk.slice(1)}
                 </button>
@@ -375,7 +372,7 @@ const RecommendationsPanel: React.FC = () => {
             </div>
             <button
               onClick={() => setShowAll(true)}
-              className="inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg hover:bg-emerald-100 transition"
+              className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg hover:bg-emerald-100 transition whitespace-nowrap"
             >
               View all
               <ArrowUpRight className="h-4 w-4" />
@@ -533,21 +530,21 @@ const RecommendationsPanel: React.FC = () => {
       {showAll && (
         <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm flex items-center justify-center px-4">
           <div className="w-full max-w-6xl max-h-[85vh] bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-white via-emerald-50/60 to-white">
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-emerald-600 font-semibold">All Plants</p>
-                <h3 className="text-xl font-bold text-slate-900">Monitored plants</h3>
+            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-white via-emerald-50/60 to-white">
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-emerald-600 font-semibold truncate">All Plants</p>
+                <h3 className="text-lg sm:text-xl font-bold text-slate-900 truncate">Monitored plants</h3>
               </div>
               <button
                 onClick={() => setShowAll(false)}
-                className="w-9 h-9 rounded-full border border-gray-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 bg-white shadow-sm"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-gray-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 bg-white shadow-sm flex items-center justify-center flex-shrink-0"
               >
                 ×
               </button>
             </div>
 
-            <div className="px-6 py-4 border-b border-gray-100 flex flex-wrap gap-3 items-center">
-              <div className="flex-1 min-w-[240px]">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-100 flex flex-col gap-4">
+              <div className="w-full">
                 <input
                   type="text"
                   placeholder="Search by name or crop..."
@@ -561,11 +558,10 @@ const RecommendationsPanel: React.FC = () => {
                   <button
                     key={risk}
                     onClick={() => setRiskFilter(risk as any)}
-                    className={`px-3 py-1.5 text-xs rounded-full border transition ${
-                      riskFilter === risk
-                        ? "bg-emerald-600 text-white border-emerald-600"
-                        : "bg-white text-slate-700 border-slate-200 hover:border-emerald-200"
-                    }`}
+                    className={`flex-1 sm:flex-none px-3 py-1.5 text-[11px] sm:text-xs rounded-full border transition ${riskFilter === risk
+                      ? "bg-emerald-600 text-white border-emerald-600"
+                      : "bg-white text-slate-700 border-slate-200 hover:border-emerald-200"
+                      }`}
                   >
                     {risk === "all" ? "All risks" : risk[0].toUpperCase() + risk.slice(1) + " risk"}
                   </button>
@@ -573,7 +569,7 @@ const RecommendationsPanel: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-4 bg-slate-50/60">
+            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 bg-slate-50/60">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {filteredPlants.length === 0 && (
                   <div className="col-span-full text-center text-slate-500 text-sm py-8">No plants found. Adjust filters or search.</div>
@@ -630,19 +626,19 @@ const RecommendationsPanel: React.FC = () => {
 
                       <p className="text-sm text-slate-700 line-clamp-2">{truncate(description, 160)}</p>
 
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-2 mt-auto">
                         <ActionButton
-                          label="Open chat"
+                          label="Chat"
                           icon={MessageCircle}
                           onClick={() => handleOpenChat(plant.id, plant.latestSessionKey || plant.linkedChatId)}
                         />
                         <ActionButton
-                          label="Upload image"
+                          label="Image"
                           icon={ImageIcon}
                           onClick={() => handleOpenChat(plant.id, plant.latestSessionKey || plant.linkedChatId, true)}
                         />
                         <ActionButton
-                          label="Mark treated"
+                          label="Treated"
                           icon={CheckCircle2}
                           onClick={() => handleMarkTreated(plant.id)}
                           tone="emerald"
@@ -683,17 +679,17 @@ const RecommendationsPanel: React.FC = () => {
                 prev.map((p) =>
                   p.id === confirmPlantId
                     ? {
-                        ...p,
-                        currentStatus: "healthy",
-                        riskLevel: "low",
-                        latestAssessment: p.latestAssessment
-                          ? {
-                              ...p.latestAssessment,
-                              severity: "low",
-                              conditionTrend: "improving",
-                            }
-                          : p.latestAssessment,
-                      }
+                      ...p,
+                      currentStatus: "healthy",
+                      riskLevel: "low",
+                      latestAssessment: p.latestAssessment
+                        ? {
+                          ...p.latestAssessment,
+                          severity: "low",
+                          conditionTrend: "improving",
+                        }
+                        : p.latestAssessment,
+                    }
                     : p
                 )
               );
@@ -800,13 +796,12 @@ const HealthMeter = ({ score }: { score: number }) => (
   <div className="flex items-center gap-3 w-full">
     <div className="flex-1 h-2.5 rounded-full bg-slate-100 overflow-hidden">
       <div
-        className={`h-full rounded-full ${
-          score >= 80
-            ? "bg-emerald-500"
-            : score >= 60
+        className={`h-full rounded-full ${score >= 80
+          ? "bg-emerald-500"
+          : score >= 60
             ? "bg-amber-400"
             : "bg-rose-400"
-        }`}
+          }`}
         style={{ width: `${score}%` }}
       />
     </div>

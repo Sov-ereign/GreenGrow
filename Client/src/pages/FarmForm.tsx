@@ -1,8 +1,11 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import { apiUrl } from "@/lib/env";
 import { Save, BarChart3, IndianRupee, Wheat, Calendar } from "lucide-react";
 
 const FarmForm = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     totalYield: "2450",
     revenue: "123000",
@@ -24,7 +27,7 @@ const FarmForm = () => {
     try {
       // ✅ POST request to backend
       const res = await axios.post(
-        "https://greengrow-wufp.onrender.com/api/farm",
+        apiUrl("/api/farm"),
         formData,
         { withCredentials: true } // cookie-based auth
       );
@@ -33,17 +36,6 @@ const FarmForm = () => {
     } catch (err: any) {
       console.error(err);
       setMessage("❌ Error saving farm data");
-    }
-  };
-
-  const fetchSingleFarm = async (id: string) => {
-    try {
-      const res = await axios.get(`https://greengrow-wufp.onrender.com/api/farm/${id}`, {
-        withCredentials: true,
-      });
-      console.log("Fetched single farm:", res.data);
-    } catch (err) {
-      console.error("Error fetching farm:", err);
     }
   };
 
@@ -139,16 +131,8 @@ const FarmForm = () => {
       </form>
 
       {message && (
-        <p className="mt-4 text-center font-medium text-gray-700">{message}</p>
+        <p className="mt-4 text-center font-medium text-gray-700 animate-bounce">{message}</p>
       )}
-
-      {/* Example button to fetch single farm */}
-      <button
-        onClick={() => fetchSingleFarm("PUT_FARM_ID_HERE")}
-        className="mt-4 bg-blue-600 text-white px-4 py-2 rounded"
-      >
-        Fetch Single Farm
-      </button>
     </div>
   );
 };

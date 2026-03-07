@@ -4,21 +4,23 @@ import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// ✅ Create farm info (linked to logged-in user)
+// ✅ Create or Update farm info (linked to logged-in user)
 router.post("/", protect, async (req, res) => {
   try {
     const { totalYield, revenue, farmSize, daysToHarvest } = req.body;
 
-    const farm = new Farm({
-      user: req.user.id,   // 🔗 link with logged-in user
-      totalYield,
-      revenue,
-      farmSize,
-      daysToHarvest,
-    });
+    const farm = await Farm.findOneAndUpdate(
+      { user: req.user.id }, // 🔗 link with logged-in user
+      {
+        totalYield,
+        revenue,
+        farmSize,
+        daysToHarvest,
+      },
+      { new: true, upsert: true } // Create if not exists, otherwise update
+    );
 
-    const savedFarm = await farm.save();
-    res.status(201).json(savedFarm);
+    res.status(201).json(farm);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }

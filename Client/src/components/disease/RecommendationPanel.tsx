@@ -17,10 +17,10 @@ export const RecommendationPanel: React.FC<RecommendationPanelProps> = ({ treatm
             <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="bg-slate-900 text-white rounded-3xl p-8 lg:col-span-1 shadow-2xl relative overflow-hidden group"
+                className="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 lg:col-span-1 shadow-2xl relative overflow-hidden group"
             >
                 <div className="absolute right-0 bottom-0 p-4 opacity-5 group-hover:scale-110 transition-transform duration-700">
-                    <Zap size={140} />
+                    <Zap className="w-24 h-24 sm:w-32 sm:h-32 lg:w-[140px] lg:h-[140px]" />
                 </div>
 
                 <div className="relative z-10">
@@ -53,9 +53,9 @@ export const RecommendationPanel: React.FC<RecommendationPanelProps> = ({ treatm
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-3xl p-8 lg:col-span-2 border border-slate-100 shadow-xl shadow-slate-200/30"
+                className="bg-white rounded-3xl p-6 sm:p-8 lg:col-span-2 border border-slate-100 shadow-xl shadow-slate-200/30"
             >
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-green-500 rounded-2xl flex items-center justify-center shadow-lg shadow-green-200">
                             <Syringe size={24} className="text-white" />
@@ -99,7 +99,7 @@ export const RecommendationPanel: React.FC<RecommendationPanelProps> = ({ treatm
                     )}
                 </div>
 
-                <div className="mt-8 p-6 bg-amber-50 rounded-2xl border border-amber-100 flex flex-col sm:flex-row items-center gap-6">
+                <div className="mt-8 p-4 sm:p-6 bg-amber-50 rounded-2xl border border-amber-100 flex flex-col sm:flex-row items-center sm:items-start lg:items-center gap-4 sm:gap-6">
                     <div className="w-14 h-14 bg-white rounded-2xl shadow-sm flex items-center justify-center flex-shrink-0 animate-bounce">
                         <Lightbulb size={28} className="text-amber-500" />
                     </div>

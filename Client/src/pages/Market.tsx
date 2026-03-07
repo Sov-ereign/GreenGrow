@@ -6,6 +6,8 @@ import {
   BarChart3,
   Loader2,
 } from "lucide-react";
+import { apiUrl } from "@/lib/env";
+import axios from "axios";
 
 // --- TYPE DEFINITIONS ---
 
@@ -65,59 +67,55 @@ const Market: React.FC = () => {
     topPerformer: "N/A",
   });
 
-  // --- STATIC DATA ---
-  const staticRecords: MandiRecord[] = [
-    { commodity: "Wheat", market: "Azadpur Mandi", state: "Delhi", min_price: "2200", max_price: "2400", modal_price: "2320" },
-    { commodity: "Rice", market: "Delhi Grain Market", state: "Delhi", min_price: "1800", max_price: "2050", modal_price: "1950" },
-    { commodity: "Tomato", market: "Lasalgaon", state: "Maharashtra", min_price: "28", max_price: "52", modal_price: "42" },
-    { commodity: "Onion", market: "Lasalgaon", state: "Maharashtra", min_price: "1600", max_price: "2200", modal_price: "1980" },
-    { commodity: "Potato", market: "Agra", state: "Uttar Pradesh", min_price: "900", max_price: "1200", modal_price: "1050" },
-    { commodity: "Maize", market: "Davangere", state: "Karnataka", min_price: "1650", max_price: "1900", modal_price: "1780" },
-    { commodity: "Cotton", market: "Warangal", state: "Telangana", min_price: "6800", max_price: "7400", modal_price: "7100" },
-    { commodity: "Soybean", market: "Indore", state: "Madhya Pradesh", min_price: "4200", max_price: "4700", modal_price: "4520" },
-    { commodity: "Mustard", market: "Alwar", state: "Rajasthan", min_price: "5200", max_price: "5650", modal_price: "5480" },
-    { commodity: "Groundnut", market: "Rajkot", state: "Gujarat", min_price: "6200", max_price: "6900", modal_price: "6550" },
-    { commodity: "Tur (Arhar)", market: "Gulbarga", state: "Karnataka", min_price: "7300", max_price: "7800", modal_price: "7550" },
-    { commodity: "Chana", market: "Bhopal", state: "Madhya Pradesh", min_price: "5150", max_price: "5600", modal_price: "5380" },
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      setPricesLoading(true);
+      setNewsLoading(true);
 
-  const staticNews: NewsItem[] = [
-    { title: "Tomato prices stabilize after mid-week spike", time: "Today", impact: "neutral" },
-    { title: "Onion arrivals increase in Maharashtra mandis", time: "2h ago", impact: "positive" },
-    { title: "Wheat demand steady ahead of procurement drive", time: "3h ago", impact: "positive" },
-    { title: "Cotton prices soften on higher arrivals", time: "4h ago", impact: "negative" },
-    { title: "Soybean futures gain on export optimism", time: "5h ago", impact: "positive" },
-  ];
+      try {
+        // Fetch Mandi Prices
+        const mandiRes = await axios.get(apiUrl("/api/mandi/prices"), { withCredentials: true });
+        if (mandiRes.data && mandiRes.data.records) {
+          const fetchedRecords = mandiRes.data.records;
+          setRecords(fetchedRecords);
+          const uniqueStates = Array.from(
+            new Set(fetchedRecords.map((r: MandiRecord) => r.state))
+          ).sort() as string[];
+          setStates(["All", ...uniqueStates]);
+          setFiltered(fetchedRecords);
+        }
 
-  const staticNewsMore: NewsItem[] = [
-    { title: "Mustard prices hold firm in northern markets", time: "6h ago", impact: "neutral" },
-    { title: "Maize demand improves across southern belts", time: "7h ago", impact: "positive" },
-    { title: "Chana trades range-bound on low supply", time: "8h ago", impact: "neutral" },
-  ];
+        // Fetch News
+        const newsRes = await axios.get(apiUrl("/api/news"), { withCredentials: true });
+        if (newsRes.data && newsRes.data.news) {
+          setNews(newsRes.data.news);
+        }
+      } catch (err) {
+        console.error("Error fetching market data:", err);
+        // On error, the backend already provides fallbacks in some cases, 
+        // but let's handle empty state or persistent error if needed.
+      } finally {
+        setPricesLoading(false);
+        setNewsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const handleLoadMoreNews = async () => {
     setMoreNewsLoading(true);
-    setTimeout(() => {
-      setNews((prevNews) => [...prevNews, ...staticNewsMore]);
+    try {
+      const res = await axios.get(apiUrl("/api/news"), { withCredentials: true });
+      if (res.data && res.data.news) {
+        setNews((prev: NewsItem[]) => [...prev, ...res.data.news]);
+      }
+    } catch (err) {
+      console.error("Error loading more news:", err);
+    } finally {
       setMoreNewsLoading(false);
-    }, 500);
+    }
   };
-
-  useEffect(() => {
-    setPricesLoading(true);
-    setNewsLoading(true);
-
-    setRecords(staticRecords);
-    setFiltered(staticRecords);
-    const uniqueStates = Array.from(
-      new Set(staticRecords.map((r) => r.state))
-    ).sort();
-    setStates(["All", ...uniqueStates]);
-    setNews(staticNews);
-
-    setPricesLoading(false);
-    setNewsLoading(false);
-  }, []);
 
   // --- DATA COMPUTATION ---
 
@@ -302,11 +300,10 @@ const Market: React.FC = () => {
                       </td>
                       <td className="py-3 md:py-4 px-2 md:px-4">
                         <div
-                          className={`flex items-center space-x-1 ${
-                            item.trend === "up"
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }`}
+                          className={`flex items-center space-x-1 ${item.trend === "up"
+                            ? "text-green-600"
+                            : "text-red-600"
+                            }`}
                         >
                           {item.trend === "up" ? (
                             <TrendingUp className="h-3 w-3 md:h-4 md:w-4" />
@@ -365,13 +362,12 @@ const Market: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-500">{item.time}</span>
                       <span
-                        className={`text-xs px-2 py-1 rounded-full ${
-                          item.impact === "positive"
-                            ? "bg-green-100 text-green-700"
-                            : item.impact === "negative"
+                        className={`text-xs px-2 py-1 rounded-full ${item.impact === "positive"
+                          ? "bg-green-100 text-green-700"
+                          : item.impact === "negative"
                             ? "bg-red-100 text-red-700"
                             : "bg-gray-100 text-gray-700"
-                        }`}
+                          }`}
                       >
                         {capitalize(item.impact)}
                       </span>
@@ -381,17 +377,19 @@ const Market: React.FC = () => {
               </div>
             )}
           </div>
-          <button
-            onClick={handleLoadMoreNews}
-            disabled={moreNewsLoading}
-            className="w-full mt-6 bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition-colors font-medium flex items-center justify-center disabled:bg-gray-400 shrink-0"
-          >
-            {moreNewsLoading ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              "More News +"
-            )}
-          </button>
+          <div className="mt-6 text-center">
+            <button
+              onClick={handleLoadMoreNews}
+              disabled={moreNewsLoading}
+              className="w-full bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition-colors font-medium flex items-center justify-center disabled:bg-gray-400"
+            >
+              {moreNewsLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                "More News +"
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>
