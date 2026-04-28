@@ -25,7 +25,7 @@ GreenGrow is a comprehensive agricultural advisory platform that leverages artif
 
   <a href="#" target="_blank">
 
-<a href="https://www.linkedin.com/posts/sov-ereign_greengrow-hackspire-futureinstitute-activity-7390292150980321281-fJZ3?utm_source=share&utm_medium=member_desktop&rcm=ACoAAFJgqL4Blt08GWuJ9AdUx5iQUQUE3O2mDc4" target="_blank">
+<a href="https://drive.google.com/file/d/1hrQRF4sp7GMm7sjuPJ93VO4AuPEb4JMh/view?usp=sharing" target="_blank">
   <img src="https://img.shields.io/badge/🎥_Watch_Demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white&labelColor=FF0000" alt="Demo Video" />
 </a>
 
@@ -35,14 +35,6 @@ GreenGrow is a comprehensive agricultural advisory platform that leverages artif
 
 > 🎯 Click to explore the live experience of GreenGrow's user-friendly interface and advanced AI-powered features.
 
-## 👥 Team Members
-
-| 👤 Name             | 📧 Email                        |
-|--------------------|---------------------------------|
-| 1. Somenath Gorai      |    somu8608@gmail.com    |
-| 2. Rimanshu Patel      | rimanshupatel1@gmail.com         |
-| 3. Monish Mandal| monishmondal48@gmail.com  |
-| 4. Sudipta Roy | sudiptaroytheofficial@gmail.com       |
 
 ## 📋 Features Overview
 
@@ -388,9 +380,6 @@ This project is licensed under the MIT License.
 - OpenWeatherMap for weather data
 - All open-source contributors
 
-## 📞 Support
-
-For support, email somu8608@gmail.com or open an issue in the repository.
 
 ---
 
