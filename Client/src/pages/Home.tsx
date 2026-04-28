@@ -1,41 +1,31 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import WeatherWidget from "../components/WeatherWidget";
-import RecommendationsPanel from "../components/RecommendationsPanel";
-import StatsCards from "../components/StatsCards";
 import { useNavigate } from "react-router-dom";
 import { apiUrl } from "@/lib/env";
-import {
-  Plus,
-  Droplets,
-  AlertCircle,
-  Settings,
-  Activity,
-  Sparkles,
-  Bell,
-} from "lucide-react";
+import { ScanLine, Mic, Droplets, Settings, Activity, AlertCircle, Plus } from "lucide-react";
+
+// New home section components
+import SmartBanner from "../components/home/SmartBanner";
+import ActionCards from "../components/home/ActionCards";
+import Alerts from "../components/home/Alerts";
+import CropsList from "../components/home/CropsList";
+import FloatingAIButton from "../components/home/FloatingAIButton";
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const userName = user?.fullName || "Guest";
+  const userName = user?.fullName || "Farmer";
 
+  // Keep the existing priority computation — passed down to ActionCards
+  const [priorities, setPriorities] = useState<{ title: string; detail: string }[]>([]);
+
+  // IoT state retained (for IoT page link / status badge)
   const [isDeviceConnected] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
-  const [priorities, setPriorities] = useState<
-    { title: string; detail: string }[]
-  >([]);
 
+  const handleConnectDevice = () => navigate("/iot-connect");
   const handleStartWatering = () => {
-    if (!isDeviceConnected) {
-      setShowAlert(true);
-    } else {
-      console.log("Starting watering...");
-    }
-  };
-
-  const handleConnectDevice = () => {
-    navigate("/iot-connect");
+    if (!isDeviceConnected) setShowAlert(true);
   };
 
   useEffect(() => {
@@ -46,7 +36,9 @@ const Home: React.FC = () => {
         const data = await res.json();
         const actions: { title: string; detail: string }[] = [];
 
-        const highRisk = data.filter((p: any) => (p.riskLevel || "").toLowerCase() === "high");
+        const highRisk = data.filter(
+          (p: any) => (p.riskLevel || "").toLowerCase() === "high"
+        );
         if (highRisk.length) {
           actions.push({
             title: "Inspect high-risk plants",
@@ -96,217 +88,131 @@ const Home: React.FC = () => {
   }, []);
 
   return (
-    <div className="space-y-8">
-      {/* Hero */}
-      <div className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-green-500 rounded-3xl shadow-lg p-6 md:p-8 text-white overflow-hidden relative">
-        <div className="absolute inset-0 opacity-15 pointer-events-none bg-[radial-gradient(circle_at_top_right,#fff,transparent_45%)]" />
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 relative z-10">
-          <div className="space-y-2">
-            <p className="text-sm uppercase tracking-[0.2em] text-emerald-50 font-semibold">
-              Continuous Plant Health Dashboard
-            </p>
-            <h1 className="text-3xl md:text-4xl font-bold drop-shadow-sm">
-              Welcome back, {userName}
-            </h1>
-            <p className="text-sm md:text-base text-emerald-50/90">
-              Live monitoring, clearer priorities, and faster follow-ups.
-            </p>
+    <div className="space-y-6 pb-24">
+      {/* ── 1. Smart Hero Banner ─────────────────────────────────────── */}
+      <SmartBanner userName={userName} />
+
+      {/* ── 2. Action Cards Row ──────────────────────────────────────── */}
+      <ActionCards priorityTasks={priorities} />
+
+      {/* ── 3. Alert Section ─────────────────────────────────────────── */}
+      <Alerts />
+
+      {/* ── 4. My Crops Section ──────────────────────────────────────── */}
+      <CropsList />
+
+      {/* ── 5. CTA Buttons ───────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Scan Crop Disease */}
+        <button
+          onClick={() => navigate("/disease-prediction")}
+          className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 to-green-500 p-6 text-left shadow-lg hover:shadow-emerald-200 hover:shadow-xl transition-all duration-200"
+        >
+          <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 opacity-10">
+            <ScanLine className="h-28 w-28 text-white" />
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => navigate("/FarmForm")}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white text-emerald-700 rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all font-semibold"
-            >
-              <Plus className="w-5 h-5" />
-              Add Farm
-            </button>
+          <div className="relative z-10">
+            <div className="mb-3 inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-sm">
+              <ScanLine className="h-6 w-6 text-white" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-1">Scan Crop Disease</h3>
+            <p className="text-emerald-100 text-sm">Use camera to detect any disease</p>
+            <div className="mt-4 inline-flex items-center gap-2 bg-white text-emerald-700 text-sm font-bold px-4 py-2 rounded-xl shadow-sm group-hover:shadow-md group-hover:-translate-y-0.5 transition-all">
+              Scan Now
+              <span className="text-base">›</span>
+            </div>
           </div>
-        </div>
+        </button>
+
+        {/* Talk to GreenGrow AI */}
+        <button
+          onClick={() => navigate("/chat")}
+          className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-500 p-6 text-left shadow-lg hover:shadow-violet-200 hover:shadow-xl transition-all duration-200"
+        >
+          <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 opacity-10">
+            <Mic className="h-28 w-28 text-white" />
+          </div>
+          <div className="relative z-10">
+            <div className="mb-3 inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-sm">
+              <Mic className="h-6 w-6 text-white" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-1">Talk to GreenGrow</h3>
+            <p className="text-violet-100 text-sm">Ask farming questions by voice or text</p>
+            <div className="mt-4 inline-flex items-center gap-2 bg-white text-violet-700 text-sm font-bold px-4 py-2 rounded-xl shadow-sm group-hover:shadow-md group-hover:-translate-y-0.5 transition-all">
+              Ask Now
+              <span className="text-base">›</span>
+            </div>
+          </div>
+        </button>
       </div>
 
-      <StatsCards />
-
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        <div className="xl:col-span-8 space-y-6">
-          <RecommendationsPanel />
+      {/* ── 6. Quick IoT Status Strip ────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4">
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-xl ${isDeviceConnected ? "bg-green-100" : "bg-slate-100"}`}>
+            <Droplets className={`h-5 w-5 ${isDeviceConnected ? "text-green-600" : "text-slate-400"}`} />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-800">IoT Sprinkler System</p>
+            <p className={`text-xs font-semibold ${isDeviceConnected ? "text-green-600" : "text-slate-400"}`}>
+              {isDeviceConnected ? "● Connected" : "○ Not Connected"}
+            </p>
+          </div>
         </div>
-
-        <div className="space-y-4 xl:col-span-4">
-          <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.15em] text-emerald-600 font-semibold">
-                  Today
-                </p>
-                <h3 className="text-lg font-bold text-slate-900">
-                  Priority actions
-                </h3>
-              </div>
-              <Bell className="h-5 w-5 text-emerald-600" />
-            </div>
-            <div className="space-y-2">
-              {priorities.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between bg-slate-50 border border-slate-100 rounded-xl px-3 py-2"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">
-                      {item.title}
-                    </p>
-                    <p className="text-xs text-slate-600">{item.detail}</p>
-                  </div>
-                  <span className="text-[11px] font-semibold text-emerald-700">
-                    Go
-                  </span>
-                </div>
-              ))}
-            </div>
-          </section>
-          <WeatherWidget />
-        </div>
-      </div>
-
-      {/* IoT Sprinkler Section */}
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                <Droplets className="h-8 w-8" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold">IoT Sprinkler System</h2>
-                <p className="text-blue-100 text-sm mt-1">
-                  Smart Irrigation Control
-                </p>
-              </div>
-            </div>
+        <div className="flex items-center gap-2">
+          {!isDeviceConnected && (
             <button
               onClick={handleConnectDevice}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-              title="Settings"
+              className="px-4 py-2 bg-slate-800 text-white text-sm font-semibold rounded-xl hover:bg-slate-700 transition-colors"
             >
-              <Settings className="h-6 w-6" />
+              Connect Device
             </button>
-          </div>
-        </div>
-
-        {showAlert && !isDeviceConnected && (
-          <div className="mx-6 mt-6 p-4 bg-orange-50 border-l-4 border-orange-500 rounded-lg">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start space-x-3">
-                <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <h3 className="text-sm font-semibold text-orange-900">
-                    No IoT Device Connected
-                  </h3>
-                  <p className="text-xs text-orange-700 mt-1">
-                    Please connect your IoT sprinkler device to enable remote watering control.
-                  </p>
-                  <button
-                    onClick={handleConnectDevice}
-                    className="mt-3 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-lg transition-colors"
-                  >
-                    Connect Device
-                  </button>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowAlert(false)}
-                className="text-orange-600 hover:text-orange-800 text-xl leading-none"
-              >
-                ×
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-            <div className="flex items-center space-x-3">
-              <div
-                className={`p-2 rounded-lg ${isDeviceConnected ? "bg-green-100" : "bg-red-100"
-                  }`}
-              >
-                <Activity
-                  className={`h-5 w-5 ${isDeviceConnected ? "text-green-600" : "text-red-600"
-                    }`}
-                />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Device Status</p>
-                <p
-                  className={`text-lg font-bold ${isDeviceConnected ? "text-green-600" : "text-red-600"
-                    }`}
-                >
-                  {isDeviceConnected ? "Connected" : "Not Connected"}
-                </p>
-              </div>
-            </div>
-            {!isDeviceConnected && (
-              <button
-                onClick={handleConnectDevice}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
-              >
-                Connect
-              </button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <DeviceMetric label="Coverage Area" value="2.5" unit="acres" tone="blue" />
-            <DeviceMetric label="Water Usage" value="0" unit="L/min" tone="cyan" />
-            <DeviceMetric label="Status" value="OFF" unit="Idle" tone="teal" />
-          </div>
-
+          )}
           <button
             onClick={handleStartWatering}
             disabled={!isDeviceConnected}
-            className={`w-full py-4 px-6 rounded-xl font-bold text-lg shadow-lg transition-all transform ${isDeviceConnected
-                ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white hover:scale-[1.02] hover:shadow-xl"
-                : "bg-gray-300 text-gray-500 cursor-not-allowed"
-              }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+              isDeviceConnected
+                ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                : "bg-slate-100 text-slate-400 cursor-not-allowed"
+            }`}
           >
-            <div className="flex items-center justify-center space-x-3">
-              <Droplets className="h-6 w-6" />
-              <span>Start Watering</span>
-            </div>
+            <Droplets className="h-4 w-4" />
+            Start Watering
           </button>
-          <p className="text-xs text-center text-gray-500">
-            {isDeviceConnected
-              ? "Click the button above to start watering your field"
-              : "Connect your IoT device to enable watering control"}
-          </p>
+          <button
+            onClick={handleConnectDevice}
+            className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors"
+            title="IoT Settings"
+          >
+            <Settings className="h-4 w-4" />
+          </button>
         </div>
       </div>
-    </div>
-  );
-};
 
-const DeviceMetric = ({
-  label,
-  value,
-  unit,
-  tone,
-}: {
-  label: string;
-  value: string;
-  unit: string;
-  tone: "blue" | "cyan" | "teal";
-}) => {
-  const toneMap = {
-    blue: "from-blue-50 to-blue-100 border-blue-200 text-blue-900",
-    cyan: "from-cyan-50 to-cyan-100 border-cyan-200 text-cyan-900",
-    teal: "from-teal-50 to-teal-100 border-teal-200 text-teal-900",
-  };
-  return (
-    <div
-      className={`p-4 bg-gradient-to-br ${toneMap[tone]} rounded-xl border`}
-    >
-      <p className="text-xs text-gray-600 font-semibold mb-1">{label}</p>
-      <p className="text-2xl font-bold">{value}</p>
-      <p className="text-xs text-gray-600">{unit}</p>
+      {/* IoT Alert Toast */}
+      {showAlert && !isDeviceConnected && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 w-[90%] max-w-sm">
+          <div className="bg-white rounded-2xl shadow-2xl border border-orange-100 p-4 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-slate-800">No IoT Device Connected</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Connect your device to enable watering control.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowAlert(false)}
+              className="text-slate-400 hover:text-slate-600 text-lg leading-none"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── 7. Floating AI Button ─────────────────────────────────────── */}
+      <FloatingAIButton />
     </div>
   );
 };

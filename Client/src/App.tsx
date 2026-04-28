@@ -29,6 +29,7 @@ import CropProductionPrediction from "./pages/CropProductionPrediction";
 import IoTConnect from "./pages/IoTConnect";
 import IvrDialer from "./pages/IvrDialer";
 import Index from "./components/Index";
+import Tasks from "./pages/Tasks";
 
 const AppLayout = () => {
   return (
@@ -70,6 +71,7 @@ function AppContent() {
             <Route path="/help" element={<Help />} />
             <Route path="/community" element={<Community />} />
             <Route path="/support" element={<Support />} />
+            <Route path="/tasks" element={<Tasks />} />
           </Route>
         </Route>
       </Routes>

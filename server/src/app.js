@@ -23,8 +23,7 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
   "https://green-grow-zeta.vercel.app",
-  "https://greengrow-wufp.onrender.com",
-  "https://greengrow-wufp.vercel.app",
+  "https://greengrow-n9g5.onrender.com",
   "https://greengrow.vercel.app",
 ];
 

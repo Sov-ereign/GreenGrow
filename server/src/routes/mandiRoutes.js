@@ -19,7 +19,7 @@ router.get('/prices', async (req, res) => {
     // Check if API returned an error
     if (response.data.status === 'error' || !response.data.records || response.data.records.length === 0) {
       console.warn('Data.gov.in API returned error or empty records. Using fallback data.');
-      
+
       // Return fallback/mock data so the UI can still function
       const fallbackData = {
         status: 'ok',
@@ -49,7 +49,7 @@ router.get('/prices', async (req, res) => {
     res.json(response.data);
   } catch (err) {
     console.error('Error fetching mandi prices:', err.message);
-    
+
     // Return fallback data even on error so UI doesn't break
     const fallbackData = {
       status: 'ok',
